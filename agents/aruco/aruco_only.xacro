@@ -3,14 +3,25 @@
 <robot name="aruco" xmlns:xacro="http://ros.org/wiki/xacro">
 
 	<!-- Properties -->
-	<xacro:property name="aruco_dict" value="${load_yaml('aruco_only.yaml')}"/>
+	<!-- <xacro:property name="aruco_dict" value="${load_yaml('aruco_only.yaml')}"/> -->
 	<!-- <xacro:property name="boat_type" value="${aruco_dict['boat_type']}"/> -->
-	<xacro:property name="aruco_num" value="${aruco_dict['aruco_num']}"/>
 	<xacro:property name="namespace" value="aruco_box"/>
-	<xacro:property name="use_mesh_file" value="true"/>
 	<!-- <xacro:property name="mesh_file" value="package://boat_landing/meshes/Boat/${boat_type}_boat.dae"/> -->
 	<!-- <xacro:property name="aruco_mesh_file_1" value="package://boat_landing/meshes/Boat/arucos/aruco${aruco_num}.dae"/> -->
-	<xacro:property name="aruco_mesh_file_1" value="package://boat_landing/meshes/Boat/arucos/aruco${aruco_num}_nested.dae"/>
+	<!-- <xacro:property name="aruco_mesh_file_1" value="package://boat_landing/meshes/Boat/arucos/aruco${aruco_num}_nested.dae"/> -->
+	<xacro:property name="aruco01" value="package://EKF-SLAM/meshes/aruco104.dae"/>
+	<xacro:property name="aruco02" value="package://EKF-SLAM/meshes/aruco3.dae"/>
+	<xacro:property name="aruco03" value="package://EKF-SLAM/meshes/aruco3.dae"/>
+	<xacro:property name="aruco04" value="package://EKF-SLAM/meshes/aruco3.dae"/>
+	<xacro:property name="aruco05" value="package://EKF-SLAM/meshes/aruco3.dae"/>
+	<xacro:property name="aruco06" value="package://EKF-SLAM/meshes/aruco3.dae"/>
+	<xacro:property name="aruco07" value="package://EKF-SLAM/meshes/aruco3.dae"/>
+	<xacro:property name="aruco08" value="package://EKF-SLAM/meshes/aruco3.dae"/>
+	<xacro:property name="aruco09" value="package://EKF-SLAM/meshes/aruco3.dae"/>
+	<xacro:property name="aruco10" value="package://EKF-SLAM/meshes/aruco3.dae"/>
+	<xacro:property name="aruco11" value="package://EKF-SLAM/meshes/aruco3.dae"/>
+	<xacro:property name="aruco12" value="package://EKF-SLAM/meshes/aruco3.dae"/>
+	<xacro:property name="aruco13" value="package://EKF-SLAM/meshes/aruco3.dae"/>
 	<!--aruco4 doesn't work for some reason...-->
 	<xacro:property name="box_width" value="1.0"/>
 	<!--+++++++++++++++++++-->
@@ -26,9 +37,91 @@
 		<visual>
 		    <origin xyz="0.0 0 0.0" rpy="0 0 0"/>
 			<geometry>
-				<mesh filename="${aruco_mesh_file_1}" scale="1.0 1.0 1.0"/>
+				<mesh filename="${aruco01}" scale="1.0 1.0 1.0"/>
 			</geometry>
 		</visual>
+
+		<!-- West Wall -->
+		<visual>
+		    <origin xyz="0.0 14.5 5.0" rpy="1.571 0 0"/>
+			<geometry>
+				<mesh filename="${aruco02}" scale="1.0 1.0 1.0"/>
+			</geometry>
+		</visual>
+		<visual>
+		    <origin xyz="5.0 14.5 5.0" rpy="1.571 0 0"/>
+			<geometry>
+				<mesh filename="${aruco03}" scale="1.0 1.0 1.0"/>
+			</geometry>
+		</visual>
+		<visual>
+		    <origin xyz="-5.0 14.5 5.0" rpy="1.571 0 0"/>
+			<geometry>
+				<mesh filename="${aruco04}" scale="1.0 1.0 1.0"/>
+			</geometry>
+		</visual>
+
+		<!-- East Wall -->
+		<visual>
+		    <origin xyz="0.0 -14.5 5.0" rpy="-1.571 0 0"/>
+			<geometry>
+				<mesh filename="${aruco05}" scale="1.0 1.0 1.0"/>
+			</geometry>
+		</visual>
+		<visual>
+		    <origin xyz="5.0 -14.5 5.0" rpy="-1.571 0 0"/>
+			<geometry>
+				<mesh filename="${aruco06}" scale="1.0 1.0 1.0"/>
+			</geometry>
+		</visual>
+		<visual>
+		    <origin xyz="-5.0 -14.5 5.0" rpy="-1.571 0 0"/>
+			<geometry>
+				<mesh filename="${aruco07}" scale="1.0 1.0 1.0"/>
+			</geometry>
+		</visual>
+
+		<!-- North Wall -->
+		<visual>
+		    <origin xyz="7.0 0.0 5.0" rpy="0 -1.571 0"/>
+			<geometry>
+				<mesh filename="${aruco08}" scale="1.0 1.0 1.0"/>
+			</geometry>
+		</visual>
+		<visual>
+		    <origin xyz="7.0 7.5 5.0" rpy="0 -1.571 0"/>
+			<geometry>
+				<mesh filename="${aruco09}" scale="1.0 1.0 1.0"/>
+			</geometry>
+		</visual>
+		<visual>
+		    <origin xyz="7.0 -7.5 5.0" rpy="0 -1.571 0"/>
+			<geometry>
+				<mesh filename="${aruco10}" scale="1.0 1.0 1.0"/>
+			</geometry>
+		</visual>
+
+		<!-- South Wall -->
+		<visual>
+		    <origin xyz="-7.0 0.0 5.0" rpy="0 1.571 0"/>
+			<geometry>
+				<mesh filename="${aruco11}" scale="1.0 1.0 1.0"/>
+			</geometry>
+		</visual>
+		<visual>
+		    <origin xyz="-7.0 7.5 5.0" rpy="0 1.571 0"/>
+			<geometry>
+				<mesh filename="${aruco12}" scale="1.0 1.0 1.0"/>
+			</geometry>
+		</visual>
+		<visual>
+		    <origin xyz="-7.0 -7.5 5.0" rpy="0 1.571 0"/>
+			<geometry>
+				<mesh filename="${aruco13}" scale="1.0 1.0 1.0"/>
+			</geometry>
+		</visual>
+
+
 		<collision>
 				<origin xyz="0 0 0.05" rpy="0 0 0"/>
 			<geometry>
@@ -36,7 +129,7 @@
 			</geometry>
 		</collision>
 		<inertial>
-			<mass value="${aruco_dict['aruco_mass']}"/>
+			<mass value="100.0"/>
 			<origin xyz="0 0 0"/>
 			<xacro:insert_block name="box_inertia"/>
 		</inertial>

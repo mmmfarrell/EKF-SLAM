@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-  <arg name="mav_name"            default="multirotor"/>
+  <arg name="mav_name"            default="slammer"/>
   <arg name="color"               default="White"/>
   <arg name="x"                   default="0"/>
   <arg name="y"                   default="0"/>
@@ -21,7 +21,7 @@
   <!-- Spawn Model in Gazebo -->
   <include file="$(find EKF-SLAM)/launch/two_mav_spawn.launch">
     <arg name="mav_name"            value="$(arg mav_name)" />
-    <arg name="model"               value="$(find roscopter_sim)/xacro/$(arg mav_name).urdf.xacro" />
+    <arg name="model"               value="$(find EKF-SLAM)/agents/$(arg mav_name)/$(arg mav_name).xacro" />
     <arg name="x"                   value="$(arg x)"/>
     <arg name="y"                   value="$(arg y)"/>
     <arg name="z"                   value="$(arg z)"/>
@@ -38,7 +38,7 @@
   <group ns="$(arg mav_name)">
 
     <!-- Load common parameters -->
-    <rosparam command="load" file="$(find roscopter_sim)/params/$(arg mav_name).yaml"/>
+    <rosparam command="load" file="$(find EKF-SLAM)/agents/$(arg mav_name)/$(arg mav_name).yaml"/>
 
     <!-- Is Flying Publisher -->
     <node pkg="rostopic" type="rostopic" name="is_flying_pub" args="pub is_flying std_msgs/Bool true"/>
