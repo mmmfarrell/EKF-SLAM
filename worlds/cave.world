@@ -309,6 +309,61 @@
       <static>1</static>  <!-- make sure static has value of 1 so as not to move when pushed-->
     </model>
 
+    <model name='aruco_1'>
+      <pose>13 0 10 0 -0 0</pose> <!--position (x y z roll pitch yaw)-->
+      <link name='link'>
+        <inertial>
+          <mass>1000</mass>
+          <inertia>
+            <ixx>1000</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>1000</iyy>
+            <iyz>0</iyz>
+            <izz>1000</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>1 1 1</size><!--size of the object that you can see(width x, length y, height z)-->
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <bounce/>
+            <friction>
+              <ode/>
+            </friction>
+            <contact>
+              <ode/>
+            </contact>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>1 1 1</size><!--size of the object that you can see(width x, length y, height z)-->
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+              <name>Gazebo/Grey</name>
+            </script>
+          </material>
+        </visual>
+        <velocity_decay>
+          <linear>0</linear>
+          <angular>0</angular>
+        </velocity_decay>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <static>1</static>  <!-- make sure static has value of 1 so as not to move when pushed-->
+    </model>
+
 
     <gui fullscreen='0'>
       <camera name='user_camera'>

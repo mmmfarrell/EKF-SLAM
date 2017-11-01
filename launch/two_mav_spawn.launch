@@ -1,0 +1,83 @@
+<?xml version="1.0"?>
+
+<launch>
+  <arg name="mav_name" default="shredder"/>
+  <arg name="model" default="$(find fcu_sim)/urdf/$(arg mav_name)/$(arg mav_name)_base.xacro"/>
+  <arg name="tf_prefix" default="$(optenv ROS_NAMESPACE)"/>
+  <arg name="x" default="0.0"/>
+  <arg name="y" default="0.0"/>
+  <arg name="yaw" default="0.0"/>
+  <arg name="z" default="10.0"/>
+  <arg name="enable_logging" default="false"/>
+  <arg name="enable_ground_truth" default="true"/>
+  <arg name="log_file" default="$(arg mav_name)"/>
+  <arg name="enable_wind" default="true"/>
+  <arg name="color" default="Black"/>
+  <arg name="robot_namespace" default="/"/>
+  <arg name="gazebo_namespace" default=""/>
+
+
+  <!-- send the robot XML to param server -->
+  <param name="robot_description" command="
+    $(find xacro)/xacro.py '$(arg model)'
+    mav_name:=$(arg mav_name)
+    color:=$(arg color)
+    gazebo_namespace:=$(arg gazebo_namespace)/gazebo
+    robot_namespace:=$(arg robot_namespace)"
+  />
+  <param name="tf_prefix" type="string" value="$(arg tf_prefix)" />
+
+  <!-- push robot_description to factory and spawn robot in gazebo -->
+  <node name="spawn_$(arg mav_name)" pkg="gazebo_ros" type="spawn_model"
+   args="-param robot_description
+         -urdf
+         -x $(arg x)
+         -y $(arg y)
+         -z $(arg z)
+         -Y $(arg yaw)
+         -gazebo_namespace $(arg gazebo_namespace)/gazebo
+         -robot_namespace $(arg robot_namespace)
+         -model $(arg mav_name)"
+   respawn="false" output="screen">
+  </node>
+
+  <arg name="boat_name" default="shredder"/>
+  <arg name="model2" default="$(find fcu_sim)/urdf/$(arg boat_name)/$(arg boat_name)_base.xacro"/>
+  <arg name="tf_prefix2" default="$(optenv ROS_NAMESPACE)"/>
+  <arg name="x2" default="0.0"/>
+  <arg name="y2" default="0.0"/>
+  <arg name="yaw2" default="0.0"/>
+  <arg name="z2" default="0.0"/>
+  <arg name="enable_logging2" default="false"/>
+  <arg name="enable_ground_truth2" default="true"/>
+  <arg name="log_file2" default="$(arg boat_name)"/>
+  <arg name="enable_wind2" default="true"/>
+  <arg name="color2" default="Black"/>
+  <arg name="robot_namespace2" default="/"/>
+  <arg name="gazebo_namespace2" default=""/>
+
+
+  <!-- send the robot XML to param server -->
+  <param name="robot_description2" command="
+    $(find xacro)/xacro.py '$(arg model2)'
+    mav_name:=$(arg boat_name)
+    color:=$(arg color)
+    gazebo_namespace:=$(arg gazebo_namespace)/gazebo
+    robot_namespace:=$(arg robot_namespace)"
+  />
+  <param name="tf_prefix" type="string" value="$(arg tf_prefix)" />
+
+  <!-- push robot_description to factory and spawn robot in gazebo -->
+  <node name="spawn_$(arg boat_name)" pkg="gazebo_ros" type="spawn_model"
+   args="-param robot_description2
+         -urdf
+         -x $(arg x2)
+         -y $(arg y2)
+         -z $(arg z2)
+         -Y $(arg yaw2)
+         -gazebo_namespace $(arg gazebo_namespace)/gazebo
+         -robot_namespace $(arg robot_namespace)
+         -model $(arg boat_name)"
+   respawn="false" output="screen">
+  </node>
+</launch>
