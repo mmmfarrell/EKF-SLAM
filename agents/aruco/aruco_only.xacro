@@ -9,19 +9,19 @@
 	<!-- <xacro:property name="mesh_file" value="package://boat_landing/meshes/Boat/${boat_type}_boat.dae"/> -->
 	<!-- <xacro:property name="aruco_mesh_file_1" value="package://boat_landing/meshes/Boat/arucos/aruco${aruco_num}.dae"/> -->
 	<!-- <xacro:property name="aruco_mesh_file_1" value="package://boat_landing/meshes/Boat/arucos/aruco${aruco_num}_nested.dae"/> -->
-	<xacro:property name="aruco01" value="package://EKF-SLAM/meshes/aruco104.dae"/>
-	<xacro:property name="aruco02" value="package://EKF-SLAM/meshes/aruco3.dae"/>
-	<xacro:property name="aruco03" value="package://EKF-SLAM/meshes/aruco3.dae"/>
-	<xacro:property name="aruco04" value="package://EKF-SLAM/meshes/aruco3.dae"/>
-	<xacro:property name="aruco05" value="package://EKF-SLAM/meshes/aruco3.dae"/>
-	<xacro:property name="aruco06" value="package://EKF-SLAM/meshes/aruco3.dae"/>
-	<xacro:property name="aruco07" value="package://EKF-SLAM/meshes/aruco3.dae"/>
-	<xacro:property name="aruco08" value="package://EKF-SLAM/meshes/aruco3.dae"/>
-	<xacro:property name="aruco09" value="package://EKF-SLAM/meshes/aruco3.dae"/>
-	<xacro:property name="aruco10" value="package://EKF-SLAM/meshes/aruco3.dae"/>
-	<xacro:property name="aruco11" value="package://EKF-SLAM/meshes/aruco3.dae"/>
-	<xacro:property name="aruco12" value="package://EKF-SLAM/meshes/aruco3.dae"/>
-	<xacro:property name="aruco13" value="package://EKF-SLAM/meshes/aruco3.dae"/>
+	<xacro:property name="aruco01" value="package://EKF-SLAM/meshes/aruco100.dae"/>
+	<xacro:property name="aruco02" value="package://EKF-SLAM/meshes/aruco101.dae"/>
+	<xacro:property name="aruco03" value="package://EKF-SLAM/meshes/aruco102.dae"/>
+	<xacro:property name="aruco04" value="package://EKF-SLAM/meshes/aruco103.dae"/>
+	<xacro:property name="aruco05" value="package://EKF-SLAM/meshes/aruco104.dae"/>
+	<xacro:property name="aruco06" value="package://EKF-SLAM/meshes/aruco105.dae"/>
+	<xacro:property name="aruco07" value="package://EKF-SLAM/meshes/aruco106.dae"/>
+	<xacro:property name="aruco08" value="package://EKF-SLAM/meshes/aruco107.dae"/>
+	<xacro:property name="aruco09" value="package://EKF-SLAM/meshes/aruco108.dae"/>
+	<xacro:property name="aruco10" value="package://EKF-SLAM/meshes/aruco109.dae"/>
+	<xacro:property name="aruco11" value="package://EKF-SLAM/meshes/aruco110.dae"/>
+	<xacro:property name="aruco12" value="package://EKF-SLAM/meshes/aruco111.dae"/>
+	<xacro:property name="aruco13" value="package://EKF-SLAM/meshes/aruco112.dae"/>
 	<!--aruco4 doesn't work for some reason...-->
 	<xacro:property name="box_width" value="1.0"/>
 	<!--+++++++++++++++++++-->
