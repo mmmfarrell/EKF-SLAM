@@ -8,6 +8,7 @@
   <arg name="yaw"                 default="0"/>
   <arg name="debug"               default="false"/>
   <arg name="boat_name"               default="aruco"/>
+  <arg name="show" default="false" />
 
   <!-- Start Simulator -->
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
@@ -72,5 +73,22 @@
     </node>
 
   </group>
+
+  <!-- ArUco Detectors -->
+  <node pkg="aruco_localization" type="aruco_localization" name="aruco">
+    <param name="show_output_video" value="$(arg show)" />
+    <param name="markermap_config" value="$(find EKF-SLAM)/params/aruco_all.yaml" />
+    <param name="marker_size" value="0.1760" />
+    <!-- <param name="marker_size" value="0.7071" /> -->
+
+    <param name="debug_save_input_frames" value="false" />
+    <param name="debug_save_output_frames" value="false" />
+    <param name="debug_image_path" value="/tmp/arucoimages" />
+
+    <remap from="input_image" to="/slammer/camera/rgb" />
+    <remap from="output_image" to="aruco/image" />
+  </node>
+
+
 
 </launch>
