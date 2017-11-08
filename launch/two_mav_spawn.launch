@@ -2,7 +2,7 @@
 
 <launch>
   <arg name="mav_name" default="shredder"/>
-  <arg name="model" default="$(find fcu_sim)/urdf/$(arg mav_name)/$(arg mav_name)_base.xacro"/>
+  <arg name="model" default="$(find EKF-SLAM)/agents/$(arg mav_name)/$(arg mav_name).xacro"/>
   <arg name="tf_prefix" default="$(optenv ROS_NAMESPACE)"/>
   <arg name="x" default="0.0"/>
   <arg name="y" default="0.0"/>
@@ -42,7 +42,7 @@
   </node>
 
   <arg name="boat_name" default="shredder"/>
-  <arg name="model2" default="$(find fcu_sim)/urdf/$(arg boat_name)/$(arg boat_name)_base.xacro"/>
+  <arg name="model2" default="$(find EKF-SLAM)/agents/$(arg boat_name)/$(arg boat_name)_only.xacro"/>
   <arg name="tf_prefix2" default="$(optenv ROS_NAMESPACE)"/>
   <arg name="x2" default="0.0"/>
   <arg name="y2" default="0.0"/>
