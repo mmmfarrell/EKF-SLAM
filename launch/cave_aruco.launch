@@ -8,7 +8,7 @@
   <arg name="yaw"                 default="0"/>
   <arg name="debug"               default="false"/>
   <arg name="boat_name"               default="aruco"/>
-  <arg name="show" default="false" />
+  <arg name="show" default="true" />
 
   <!-- Start Simulator -->
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
