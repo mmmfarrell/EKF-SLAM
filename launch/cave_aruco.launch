@@ -78,8 +78,8 @@
   <node pkg="aruco_localization" type="aruco_localization" name="aruco">
     <param name="show_output_video" value="$(arg show)" />
     <param name="markermap_config" value="$(find EKF-SLAM)/params/aruco_all.yaml" />
-    <param name="marker_size" value="0.1760" />
-    <!-- <param name="marker_size" value="0.7071" /> -->
+    <!-- <param name="marker_size" value="0.1760" /> -->
+    <param name="marker_size" value="0.7071" />
 
     <param name="debug_save_input_frames" value="false" />
     <param name="debug_save_output_frames" value="false" />

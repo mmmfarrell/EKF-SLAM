@@ -44,7 +44,7 @@
             <far>${rgb_range}</far>
           </clip>
         </camera>
-        <plugin name="${namespace}_camera" filename="libfcu_sim_camera_plugin.so">
+        <plugin name="${namespace}_camera" filename="libmagicc_sim_camera_plugin.so">
           <robotNamespace>${namespace}</robotNamespace>
           <alwaysOn>true</alwaysOn>
           <updateRate>${frame_rate}</updateRate>
