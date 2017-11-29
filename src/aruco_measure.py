@@ -172,6 +172,7 @@ class ekf_slam:
 
         self.xhat = self.xhat + np.matmul(self.L,(self.z-zhat))
         self.P = np.matmul((np.identity(9)-np.matmul(self.L,C)),self.P)
+
         # Callback Functions
     def truth_callback(self, msg):
 

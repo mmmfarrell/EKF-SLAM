@@ -5,6 +5,7 @@ import rospy
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Float32
+from aruco_localization.msg import MarkerMeasurementArray
 from math import *
 import numpy as np
 import tf
@@ -17,11 +18,11 @@ class ekf_slam:
 
         # Estimator stuff
         # x = pn, pe, pd, phi, theta, psi
-        self.xhat = np.zeros((6,1))
+        self.xhat = np.zeros((9,1))
         self.xhat_odom = Odometry()
 
         # Covariance matrix
-        # self.P = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01])
+        self.P = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01])
 
         # Measurements stuff
         # Truth
@@ -41,14 +42,35 @@ class ekf_slam:
         self.truth_v = 0.0
         self.truth_w = 0.0
         self.prev_time = 0.0
+        self.imu_az = 0.0
+        #aruco Stuff
+        self.aruco_location = {
+        100:[0.0, 0.0, 0.0],
+        101:[0.0, 14.5, 5.0],
+        102:[5.0, 14.5, 5.0],
+        103:[-5.0, 14.5, 5.0],
+        104:[0.0, -14.5, 5.0],
+        105:[5.0, -14.5, 5.0],
+        106:[-5.0, -14.5, 5.0],
+        107:[7.0, 0.0, 5.0],
+        108:[7.0, 7.5, 5.0],
+        109:[7.0, -7.5, 5.0],
+        110:[-7.0, 0.0, 5.0],
+        111:[-7.0, 7.5, 5.0],
+        112:[-7.0, -7.5, 5.0],
+        }
 
         # Number of propagate steps
-        self.N = 5
+        self.N = 1
+
+        #Constants
+        self.g = 9.8
 
         # ROS Stuff
         # Init subscribers
         self.truth_sub_ = rospy.Subscriber('/slammer/ground_truth/odometry/NED', Odometry, self.truth_callback)
         self.imu_sub_ = rospy.Subscriber('/slammer/imu/data', Imu, self.imu_callback)
+        # self.aruco_sub = rospy.Subscriber('/aruco/measurements', MarkerMeasurementArray, self.aruco_meas_callback )
 
         # Init publishers
         self.estimate_pub_ = rospy.Publisher('/ekf_estimate', Odometry, queue_size=10)
@@ -69,13 +91,13 @@ class ekf_slam:
 
         for _ in range(self.N):
             # Calc trig functions
-            sp = sin(self.xhat[3])
-            cp = cos(self.xhat[3])
-            st = sin(self.xhat[4])
-            ct = cos(self.xhat[4])
-            tt = tan(self.xhat[4])
-            spsi = sin(self.xhat[5])
-            cpsi = cos(self.xhat[5])
+            sp = sin(self.xhat[6])
+            cp = cos(self.xhat[6])
+            st = sin(self.xhat[7])
+            ct = cos(self.xhat[7])
+            tt = tan(self.xhat[7])
+            spsi = sin(self.xhat[8])
+            cpsi = cos(self.xhat[8])
             # sp = sin(self.truth_phi)
             # cp = cos(self.truth_phi)
             # st = sin(self.truth_theta)
@@ -108,18 +130,48 @@ class ekf_slam:
             eul_dot = np.matmul(rot_matrix, ang_rates)
 
             # Calc xdot
-            xdot = np.zeros((6,1))
+            #TODO add other states, or remove states from Jacobian
+            xdot = np.zeros((9,1))
             xdot[0] = pos_dot[0]
             xdot[1] = pos_dot[1]
             xdot[2] = pos_dot[2]
-            xdot[3] = eul_dot[0]
-            xdot[4] = eul_dot[1]
-            xdot[5] = eul_dot[2]
+            xdot[3] = cp*st*self.imu_az                    # udot
+            xdot[4] = -sp*self.imu_az                     # vdot
+            xdot[5] = self.g+cp*ct*self.imu_az              # wdot
+            xdot[6] = eul_dot[0]
+            xdot[7] = eul_dot[1]
+            xdot[8] = eul_dot[2]
 
             self.xhat += xdot*dt/float(self.N)
 
+            # A = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0],
+            # [0, 0, 0, 0, 1, 0, 0, 0, 0],
+            # [0, 0, 0, 0, 0, 1, 0, 0, 0],
+            # [0, 0, 0, 0, 0, 0, -sp*st*self.imu_az, cp*ct*self.imu_az, 0],
+            # [0, 0, 0, 0, 0, 0, -cp*self.imu_az, 0, 0],
+            # [0, 0, 0, 0, 0, 0, -sp*ct*self.imu_az, -cp*st*self.imu_az, 0],
+            # [0, 0, 0, 0, 0, 0, self.truth_q*cp*tt-self.truth_r*sp*tt, (self.truth_q*sp+self.truth_r*cp)/(ct)**2, 0],
+            # [0, 0, 0, 0, 0, 0, -self.truth_q*sp-self.truth_r*cp, 0, 0],
+            # [0, 0, 0, 0, 0, 0, (self.truth_q*cp-self.truth_r*sp)/ct, -(self.truth_q*sp+self.truth_r*cp)*tt/ct, 0]])
+            #
+            # self.P = self.P + 1/float(self.N)*(np.matmul(A,self.P)+np.matmul(self.P,A.T))#+np.matmul(G,Q,G.T))
+
     def update(self):
-        pass
+        m = self.aruco_location[self.aruco_id]
+        rangehat = np.double(np.sqrt((m[0]-self.xhat[0])**2 + (-m[1]-self.xhat[1])**2))
+
+        zhat = np.array([[rangehat],
+                        [np.arctan2(-m[1]-self.xhat[1],m[0]-self.xhat[0])-self.xhat[8]]])
+
+        C = np.array([[np.double(-(m[0]-self.xhat[0])/rangehat) , -((-m[1])-self.xhat[1])/rangehat,0,0,0,0,0,0,0 ],
+                           [((-m[1])-self.xhat[1])/rangehat**2  , -(m[0]-self.xhat[0])/rangehat**2,0,0,0,0,0,0,-1]])
+
+        # print self.aruco_id, self.xhat[0], self.xhat[1], self.range, self.H
+        S = np.matmul(C,np.matmul(self.P,C.T))#+self.Q
+        self.L =np.matmul(self.P,np.matmul(C.T,np.linalg.inv(S)))
+
+        self.xhat = self.xhat + np.matmul(self.L,(self.z-zhat))
+        self.P = np.matmul((np.identity(9)-np.matmul(self.L,C)),self.P)
 
     def pub_est(self, event):
 
@@ -129,16 +181,16 @@ class ekf_slam:
         self.xhat_odom.pose.pose.position.y = self.xhat[1] # pe
         self.xhat_odom.pose.pose.position.z = self.xhat[2] # pd
 
-        quat = tf.transformations.quaternion_from_euler(self.xhat[3].copy(), self.xhat[4].copy(), self.xhat[5].copy())
+        quat = tf.transformations.quaternion_from_euler(self.xhat[6].copy(), self.xhat[7].copy(), self.xhat[8].copy())
 
         # These are euler angles
         self.xhat_odom.pose.pose.orientation.x = quat[0]
         self.xhat_odom.pose.pose.orientation.y = quat[1]
         self.xhat_odom.pose.pose.orientation.z = quat[2]
         self.xhat_odom.pose.pose.orientation.w = quat[3]
-        # self.xhat_odom.twist.twist.angular.x = self.xhat[3] # phi
-        # self.xhat_odom.twist.twist.angular.y = self.xhat[4] # theta
-        # self.xhat_odom.twist.twist.angular.z = self.xhat[5] # psi
+        self.xhat_odom.twist.twist.linear.x = self.xhat[3] # u
+        self.xhat_odom.twist.twist.linear.y = self.xhat[4] # v
+        self.xhat_odom.twist.twist.linear.z = self.xhat[5] # w
 
         self.estimate_pub_.publish(self.xhat_odom)
 
@@ -164,9 +216,9 @@ class ekf_slam:
         self.truth_theta = euler[1]
         self.truth_psi = euler[2]
 
-        # self.truth_p = msg.twist.twist.angular.x
-        # self.truth_q = msg.twist.twist.angular.y
-        # self.truth_r = msg.twist.twist.angular.z
+        self.truth_p = msg.twist.twist.angular.x
+        self.truth_q = msg.twist.twist.angular.y
+        self.truth_r = msg.twist.twist.angular.z
 
         self.truth_u = msg.twist.twist.linear.x
         self.truth_v = msg.twist.twist.linear.y
@@ -183,9 +235,9 @@ class ekf_slam:
         # Map msg to class variables
 
         # Angular rates
-        self.truth_p = msg.angular_velocity.x
-        self.truth_q = msg.angular_velocity.y
-        self.truth_r = msg.angular_velocity.z
+        # self.truth_p = msg.angular_velocity.x
+        # self.truth_q = msg.angular_velocity.y
+        # self.truth_r = msg.angular_velocity.z
         # self.imu_p = msg.angular_velocity.x
         # self.imu_q = msg.angular_velocity.y
         # self.imu_r = msg.angular_velocity.z
@@ -195,6 +247,23 @@ class ekf_slam:
         self.imu_ay = msg.linear_acceleration.y
         self.imu_az = msg.linear_acceleration.z
 
+    def aruco_meas_callback(self, msg):
+        if len(msg.poses)>0:
+            for i in range (0,len(msg.poses)):
+                self.aruco_id = msg.poses[i].aruco_id
+
+                self.aruco_x = msg.poses[i].position.x
+                self.aruco_y = msg.poses[i].position.y
+                self.aruco_z = msg.poses[i].position.z
+
+                self.aruco_phi = msg.poses[i].euler.x
+                self.aruco_theta = msg.poses[i].euler.y
+                self.aruco_psi = msg.poses[i].euler.z
+
+                self.range = np.sqrt(self.aruco_x**2 + self.aruco_y**2 + self.aruco_z**2)
+                self.bearing_2d = np.arctan2(self.aruco_x,self.aruco_z)#-self.truth_psi
+                self.z = np.array([[self.range],[self.bearing_2d]])
+                # self.update()
 
 ##############################
 #### Main Function to Run ####
