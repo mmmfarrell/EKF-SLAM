@@ -68,9 +68,12 @@
     </node>
 
     <!-- plot states -->
-    <node pkg="roscopter" type="states_plotter.py" name="states_plotter" output="screen">
+    <node pkg="EKF-SLAM" type="states_plotter.py" name="states_plotter" output="screen">
       <param name="time_window" value="10.0"/>
     </node>
+
+    <!-- My estimator -->
+    <node pkg="EKF-SLAM" type="ekf_slam2D.py" name="estimator_slam"/>
 
   </group>
 
