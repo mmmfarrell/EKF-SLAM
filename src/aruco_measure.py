@@ -218,7 +218,7 @@ class ekf_slam:
                 self.aruco_psi = msg.poses[i].euler.z
 
                 self.range = np.sqrt(self.aruco_x**2 + self.aruco_y**2 + self.aruco_z**2)
-                self.bearing_2d = np.tan(self.aruco_x/self.aruco_z)
+                self.bearing_2d = np.arctan2(self.aruco_x,self.aruco_z)
                 self.update()
 
 ##############################
