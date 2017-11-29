@@ -39,6 +39,23 @@ class ekf_slam:
         self.truth_pedot = 0.0
         self.truth_pddot = 0.0
 
+        #aruco Stuff
+        self.aruco_location = {
+        100:[0.0, 0.0, 0.0],
+        101:[0.0, 14.5, 5.0],
+        102:[5.0, 14.5, 5.0],
+        103:[-5.0, 14.5, 5.0],
+        104:[0.0, -14.5, 5.0],
+        105:[5.0, -14.5, 5.0],
+        106:[-5.0, -14.5, 5.0],
+        107:[7.0, 0.0, 5.0],
+        108:[7.0, 7.5, 5.0],
+        109:[7.0, -7.5, 5.0],
+        110:[-7.0, 0.0, 5.0],
+        111:[-7.0, 7.5, 5.0],
+        112:[-7.0, -7.5, 5.0],
+        }
+
         # IMU Stuff
         self.imu_p = 0.0
         self.imu_q = 0.0
@@ -58,15 +75,15 @@ class ekf_slam:
 
         # Init publishers
         self.estimate_pub_ = rospy.Publisher('ekf_estimate', Odometry, queue_size=10)
-        
+
 
         # Init Timer
         self.propagate_rate_ = 100. #
         self.update_timer_ = rospy.Timer(rospy.Duration(1.0/self.propagate_rate_), self.propagate)
 
         #TODO figure out how to call the update step to trigger when new measurements come in
-        self.measurement_rate = 10.
-        self.meas_timer_ = rospy.Timer(rospy.Duration(1.0/self.measurement_rate), self.update)
+        # self.measurement_rate = 10.
+        # self.meas_timer_ = rospy.Timer(rospy.Duration(1.0/self.measurement_rate), self.update)
 
 
     def propagate(self, event):
@@ -141,11 +158,13 @@ class ekf_slam:
 
         self.estimate_pub_.publish(self.xhat_odom)
 
-    def update(self,event):
-        pass
-        # print self.range
+    def update(self):
+        aruco_pos = self.aruco_location[self.aruco_id]
+        # drone_pos = [aruco_pos[0]-self.aruco]
+        print self.aruco_id, self.range, self.bearing_2d
 
-    # Callback Functions
+
+        # Callback Functions
     def truth_callback(self, msg):
 
         # Map msg to class variables
@@ -199,7 +218,8 @@ class ekf_slam:
                 self.aruco_psi = msg.poses[i].euler.z
 
                 self.range = np.sqrt(self.aruco_x**2 + self.aruco_y**2 + self.aruco_z**2)
-                print self.aruco_id, self.range
+                self.bearing_2d = np.arctan2(self.aruco_x,self.aruco_z)
+                self.update()
 
 ##############################
 #### Main Function to Run ####
