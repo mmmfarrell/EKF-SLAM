@@ -81,9 +81,7 @@ class ekf_slam:
         self.propagate_rate_ = 100. #
         self.update_timer_ = rospy.Timer(rospy.Duration(1.0/self.propagate_rate_), self.propagate)
 
-        #TODO figure out how to call the update step to trigger when new measurements come in
-        # self.measurement_rate = 10.
-        # self.meas_timer_ = rospy.Timer(rospy.Duration(1.0/self.measurement_rate), self.update)
+
 
 
     def propagate(self, event):
@@ -159,11 +157,21 @@ class ekf_slam:
         self.estimate_pub_.publish(self.xhat_odom)
 
     def update(self):
-        aruco_pos = self.aruco_location[self.aruco_id]
-        # drone_pos = [aruco_pos[0]-self.aruco]
-        print self.aruco_id, self.range, self.bearing_2d
+        m = self.aruco_location[self.aruco_id]
+        rangehat = np.double(np.sqrt((m[0]-self.xhat[0])**2 + (-m[1]-self.xhat[1])**2))
 
+        zhat = np.array([[rangehat],
+                        [np.arctan2(-m[1]-self.xhat[1],m[0]-self.xhat[0])-self.xhat[8]]])
 
+        C = np.array([[np.double(-(m[0]-self.xhat[0])/rangehat) , -((-m[1])-self.xhat[1])/rangehat,0,0,0,0,0,0,0 ],
+                           [((-m[1])-self.xhat[1])/rangehat**2  , -(m[0]-self.xhat[0])/rangehat**2,0,0,0,0,0,0,-1]])
+
+        # print self.aruco_id, self.xhat[0], self.xhat[1], self.range, self.H
+        S = np.matmul(C,np.matmul(self.P,C.T))#+self.Q
+        self.L =np.matmul(self.P,np.matmul(C.T,np.linalg.inv(S)))
+
+        self.xhat = self.xhat + np.matmul(self.L,(self.z-zhat))
+        self.P = np.matmul((np.identity(9)-np.matmul(self.L,C)),self.P)
         # Callback Functions
     def truth_callback(self, msg):
 
@@ -218,7 +226,8 @@ class ekf_slam:
                 self.aruco_psi = msg.poses[i].euler.z
 
                 self.range = np.sqrt(self.aruco_x**2 + self.aruco_y**2 + self.aruco_z**2)
-                self.bearing_2d = np.arctan2(self.aruco_x,self.aruco_z)
+                self.bearing_2d = np.arctan2(self.aruco_x,self.aruco_z)#-self.truth_psi
+                self.z = np.array([[self.range],[self.bearing_2d]])
                 self.update()
 
 ##############################
