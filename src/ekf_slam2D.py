@@ -23,6 +23,7 @@ class ekf_slam:
 
         # Covariance matrix
         self.P = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01])
+        self.Q = np.diag([2.0, 1.0]) # meas noise
 
         # Measurements stuff
         # Truth
@@ -57,7 +58,7 @@ class ekf_slam:
         109:[7.0, -7.5, 5.0],
         110:[-7.0, 0.0, 5.0],
         111:[-7.0, 7.5, 5.0],
-        112:[-7.0, -7.5, 5.0],
+        112:[-7.0, 7.5, 5.0],
         }
 
         # Number of propagate steps
@@ -70,7 +71,7 @@ class ekf_slam:
         # Init subscribers
         self.truth_sub_ = rospy.Subscriber('/slammer/ground_truth/odometry/NED', Odometry, self.truth_callback)
         self.imu_sub_ = rospy.Subscriber('/slammer/imu/data', Imu, self.imu_callback)
-        # self.aruco_sub = rospy.Subscriber('/aruco/measurements', MarkerMeasurementArray, self.aruco_meas_callback )
+        self.aruco_sub = rospy.Subscriber('/aruco/measurements', MarkerMeasurementArray, self.aruco_meas_callback )
 
         # Init publishers
         self.estimate_pub_ = rospy.Publisher('/ekf_estimate', Odometry, queue_size=10)
@@ -144,17 +145,18 @@ class ekf_slam:
 
             self.xhat += xdot*dt/float(self.N)
 
-            # A = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0],
-            # [0, 0, 0, 0, 1, 0, 0, 0, 0],
-            # [0, 0, 0, 0, 0, 1, 0, 0, 0],
-            # [0, 0, 0, 0, 0, 0, -sp*st*self.imu_az, cp*ct*self.imu_az, 0],
-            # [0, 0, 0, 0, 0, 0, -cp*self.imu_az, 0, 0],
-            # [0, 0, 0, 0, 0, 0, -sp*ct*self.imu_az, -cp*st*self.imu_az, 0],
-            # [0, 0, 0, 0, 0, 0, self.truth_q*cp*tt-self.truth_r*sp*tt, (self.truth_q*sp+self.truth_r*cp)/(ct)**2, 0],
-            # [0, 0, 0, 0, 0, 0, -self.truth_q*sp-self.truth_r*cp, 0, 0],
-            # [0, 0, 0, 0, 0, 0, (self.truth_q*cp-self.truth_r*sp)/ct, -(self.truth_q*sp+self.truth_r*cp)*tt/ct, 0]])
-            #
+            A = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 1, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, -sp*st*self.imu_az, cp*ct*self.imu_az, 0],
+            [0, 0, 0, 0, 0, 0, -cp*self.imu_az, 0, 0],
+            [0, 0, 0, 0, 0, 0, -sp*ct*self.imu_az, -cp*st*self.imu_az, 0],
+            [0, 0, 0, 0, 0, 0, self.truth_q*cp*tt-self.truth_r*sp*tt, (self.truth_q*sp+self.truth_r*cp)/(ct)**2, 0],
+            [0, 0, 0, 0, 0, 0, -self.truth_q*sp-self.truth_r*cp, 0, 0],
+            [0, 0, 0, 0, 0, 0, (self.truth_q*cp-self.truth_r*sp)/ct, -(self.truth_q*sp+self.truth_r*cp)*tt/ct, 0]])
+
             # self.P = self.P + 1/float(self.N)*(np.matmul(A,self.P)+np.matmul(self.P,A.T))#+np.matmul(G,Q,G.T))
+            self.P = self.P + np.diag([0.001, 0.001, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.001])
 
     def update(self):
         m = self.aruco_location[self.aruco_id]
@@ -167,11 +169,25 @@ class ekf_slam:
                            [((-m[1])-self.xhat[1])/rangehat**2  , -(m[0]-self.xhat[0])/rangehat**2,0,0,0,0,0,0,-1]])
 
         # print self.aruco_id, self.xhat[0], self.xhat[1], self.range, self.H
-        S = np.matmul(C,np.matmul(self.P,C.T))#+self.Q
+        S = np.matmul(C,np.matmul(self.P,C.T))+self.Q
         self.L =np.matmul(self.P,np.matmul(C.T,np.linalg.inv(S)))
 
-        self.xhat = self.xhat + np.matmul(self.L,(self.z-zhat))
-        self.P = np.matmul((np.identity(9)-np.matmul(self.L,C)),self.P)
+        # wrap the residual
+        residual = self.z-zhat
+        if residual[1] > np.pi:
+            residual[1] -= 2*np.pi
+        if residual[1] < -np.pi:
+            residual[1] += 2*np.pi
+        print "zhat", zhat
+        # print "Residua", residual[1]
+
+        dist = residual.T.dot(np.linalg.inv(S)).dot(residual)[0,0]
+        # print "dist", dist
+        if dist < 9:
+            self.xhat = self.xhat + np.matmul(self.L,(self.z-zhat))
+            self.P = np.matmul((np.identity(9)-np.matmul(self.L,C)),self.P)
+        else:
+            print "gated a measurement", np.sqrt(dist)
 
     def pub_est(self, event):
 
@@ -263,7 +279,17 @@ class ekf_slam:
                 self.range = np.sqrt(self.aruco_x**2 + self.aruco_y**2 + self.aruco_z**2)
                 self.bearing_2d = np.arctan2(self.aruco_x,self.aruco_z)#-self.truth_psi
                 self.z = np.array([[self.range],[self.bearing_2d]])
-                # self.update()
+
+                if self.aruco_id == 112:# or self.aruco_id == 112:
+                    print "107 Update"
+                    print "range =", self.range
+                    print "2D bear =", self.bearing_2d
+                    self.update()
+                # if self.aruco_id == 107 or self.aruco_id == 108:
+                #     print "107 Update"
+                #     print "range =", self.range
+                #     print "2D bear =", self.bearing_2d
+                #     self.update()
 
 ##############################
 #### Main Function to Run ####

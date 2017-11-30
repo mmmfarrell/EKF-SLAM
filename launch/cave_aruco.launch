@@ -73,7 +73,7 @@
     </node>
 
     <!-- My estimator -->
-    <node pkg="EKF-SLAM" type="ekf_slam2D.py" name="estimator_slam"/>
+    <!-- <node pkg="EKF-SLAM" type="ekf_slam2D.py" name="estimator_slam"/> -->
 
   </group>
 

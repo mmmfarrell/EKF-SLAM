@@ -96,8 +96,8 @@ Author: James Jackson
   <xacro:gps_plugin_macro namespace="${namespace}" parent_link="${namespace}/base_link"/>
 
   <!-- Fixed Camera -->
-  <!-- <xacro:include filename="$(find magicc_sim_plugins)/xacro/camera.xacro"/> -->
-  <xacro:include filename="$(find EKF-SLAM)/plugins/camera.xacro"/>
+  <xacro:include filename="$(find magicc_sim_plugins)/xacro/camera.xacro"/>
+  <!-- <xacro:include filename="$(find EKF-SLAM)/plugins/camera.xacro"/> -->
 
   <!-- <xacro:simple_camera <xacro:include filename="$(find magicc_sim_plugins)/xacro/camera.xacro"/> -->
   <xacro:simple_camera
@@ -107,7 +107,7 @@ Author: James Jackson
     rgb_range="1000"
     parent_link="${namespace}/base_link"
     image_topic="rgb"
-    image_camera_info_topic="camera_info">
+    camera_info_topic="camera_info">
     <!-- Camera set 20 cm down to get prop out of FOV -->
     <origin xyz="0.0 0.0 -0.20" rpy="0.0 0.0 0.0"/>
   </xacro:simple_camera>
