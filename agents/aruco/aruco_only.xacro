@@ -34,12 +34,12 @@
 
 	<!-- Define the aruco link -->
 	<link name="aruco_link_1">
-		<visual>
+		<!-- <visual>
 		    <origin xyz="0.0 0 0.0" rpy="0 0 0"/>
 			<geometry>
 				<mesh filename="${aruco01}" scale="1.0 1.0 1.0"/>
 			</geometry>
-		</visual>
+		</visual> -->
 
 		<!-- West Wall -->
 		<visual>

@@ -41,7 +41,14 @@ waypoint_manager: {
 waypoints:
  # [[0, 0, -5, 0],
  # [[2.0, -1.0, -5, 0]],
- [[-2, 1.0, -5, 3.14159]],
+
+ # Side Walls
+ # [[2, -1.0, -5, 3.14159],
+ # [-5, 1.0, -5, 0.]],
+
+ # Far Top and Bottom Walls
+ [[0., -12.0, -5, -1.57],
+ [0., 12.0, -5, 1.57]],
 
 #rotate, then move forward for simplicity
  # [[0, 0, -5, 0],

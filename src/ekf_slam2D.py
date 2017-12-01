@@ -58,7 +58,7 @@ class ekf_slam:
         109:[7.0, -7.5, 5.0],
         110:[-7.0, 0.0, 5.0],
         111:[-7.0, 7.5, 5.0],
-        112:[-7.0, 7.5, 5.0],
+        112:[-7.0, -7.5, 5.0],
         }
 
         # Number of propagate steps
@@ -179,12 +179,12 @@ class ekf_slam:
         if residual[1] < -np.pi:
             residual[1] += 2*np.pi
         print "zhat", zhat
-        # print "Residua", residual[1]
+        print "Residua", residual
 
         dist = residual.T.dot(np.linalg.inv(S)).dot(residual)[0,0]
         # print "dist", dist
         if dist < 9:
-            self.xhat = self.xhat + np.matmul(self.L,(self.z-zhat))
+            self.xhat = self.xhat + np.matmul(self.L,(residual))
             self.P = np.matmul((np.identity(9)-np.matmul(self.L,C)),self.P)
         else:
             print "gated a measurement", np.sqrt(dist)
@@ -280,11 +280,11 @@ class ekf_slam:
                 self.bearing_2d = np.arctan2(self.aruco_x,self.aruco_z)#-self.truth_psi
                 self.z = np.array([[self.range],[self.bearing_2d]])
 
-                if self.aruco_id == 112:# or self.aruco_id == 112:
-                    print "107 Update"
-                    print "range =", self.range
-                    print "2D bear =", self.bearing_2d
-                    self.update()
+                # if not (self.aruco_id == 110 or self.aruco_id == 111 or self.aruco_id == 112 or self.aruco_id == 107 or self.aruco_id == 108 or self.aruco_id == 109):
+                print "\nUpdate", self.aruco_id
+                print "range =", self.range
+                print "2D bear =", self.bearing_2d
+                self.update()
                 # if self.aruco_id == 107 or self.aruco_id == 108:
                 #     print "107 Update"
                 #     print "range =", self.range
