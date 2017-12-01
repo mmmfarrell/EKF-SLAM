@@ -16,16 +16,13 @@ class ekf_slam:
         #init stuff
         #get stuff
 
-        self.num_landmarks = 12
-
         # Estimator stuff
         # x = pn, pe, pd, phi, theta, psi
-        self.xhat = np.zeros((9 + 2*self.num_landmarks, 1))
+        self.xhat = np.zeros((9,1))
         self.xhat_odom = Odometry()
 
         # Covariance matrix
-        self.P = np.zeros((9 + 2*self.num_landmarks, 9 + 2*self.num_landmarks))
-        self.P[9:,9:] = np.eye(2*self.num_landmarks)*9999999.9 # Inf
+        self.P = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01])
         self.Q = np.diag([2.0, 1.0]) # meas noise
 
         # Measurements stuff
@@ -47,7 +44,6 @@ class ekf_slam:
         self.truth_w = 0.0
         self.prev_time = 0.0
         self.imu_az = 0.0
-
         #aruco Stuff
         self.aruco_location = {
         100:[0.0, 0.0, 0.0],
@@ -66,7 +62,7 @@ class ekf_slam:
         }
 
         # Number of propagate steps
-        self.N = 5
+        self.N = 1
 
         #Constants
         self.g = 9.8
@@ -147,7 +143,7 @@ class ekf_slam:
             xdot[7] = eul_dot[1]
             xdot[8] = eul_dot[2]
 
-            self.xhat[0:9] += xdot*dt/float(self.N)
+            self.xhat += xdot*dt/float(self.N)
 
             # A = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0],
             # [0, 0, 0, 0, 1, 0, 0, 0, 0],
@@ -160,45 +156,17 @@ class ekf_slam:
             # [0, 0, 0, 0, 0, 0, (self.truth_q*cp-self.truth_r*sp)/ct, -(self.truth_q*sp+self.truth_r*cp)*tt/ct, 0]])
 
             # self.P = self.P + 1/float(self.N)*(np.matmul(A,self.P)+np.matmul(self.P,A.T))#+np.matmul(G,Q,G.T))
-            self.P[0:9,0:9] += np.diag([0.001, 0.001, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.001])
+            self.P = self.P + np.diag([0.001, 0.001, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.001])
 
     def update(self):
+        m = self.aruco_location[self.aruco_id]
+        rangehat = np.double(np.sqrt((m[0]-self.xhat[0])**2 + (-m[1]-self.xhat[1])**2))
 
-        # Remember that X correpsonds to East and Y to north
+        zhat = np.array([[rangehat],
+                        [np.arctan2(-m[1]-self.xhat[1],m[0]-self.xhat[0])-self.xhat[8]]])
 
-        # Compute Landmark index (0 indexed)
-        lndmark = self.aruco_id - 101
-
-        # If never seen before
-        if self.xhat[9+2*lndmark] == 0.0:
-
-            # Init location of Landmark
-            self.xhat[9+2*lndmark] = self.xhat[0] + self.range*sin(self.bearing_2d + self.xhat[8]) # pn
-            self.xhat[10+2*lndmark] = self.xhat[1] + self.range*cos(self.bearing_2d + self.xhat[8]) # pe
-
-        # Compute Delta
-        delta_n = self.xhat[9+2*lndmark] - self.xhat[0]
-        delta_e = self.xhat[10+2*lndmark] - self.xhat[1]
-        delta = np.array([delta_e, delta_n])
-
-        q = np.matmul(delta.T, delta)
-        # print "q", q
-
-        # Compute Zhat
-        zhat = np.array([[sqrt(q)],
-                        [np.arctan2(delta_n, delta_e)-self.xhat[8]]])
-        # print "zhat", zhat
-
-        # Selector Matrix
-        Fxj = np.array([[np.eye(9), np.zeros((9, 2*self.num_landmarks))],
-            [np.zeros((2, 9+(2*(lndmark)))), np.eye(2), np.zeros((2, 2*self.num_landmarks - 2*lndmark))]])
-
-        print "Fxj", Fxj
-
-        littleC = (1/q)*np.array([[-sqrt(q)*delta_e, -sqrt(q)*delta_n, 0., sqrt(q)*delta_e, sqrt(q)*delta_n],
-                           [delta_n, -delta_e, -q, -delta_n, delta_e]])
-
-        C = np.matmul(littleC, Fxj)
+        C = np.array([[np.double(-(m[0]-self.xhat[0])/rangehat) , -((-m[1])-self.xhat[1])/rangehat,0,0,0,0,0,0,0 ],
+                           [((-m[1])-self.xhat[1])/rangehat**2  , -(m[0]-self.xhat[0])/rangehat**2,0,0,0,0,0,0,-1]])
 
         # print self.aruco_id, self.xhat[0], self.xhat[1], self.range, self.H
         S = np.matmul(C,np.matmul(self.P,C.T))+self.Q

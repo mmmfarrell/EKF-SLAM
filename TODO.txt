@@ -1,6 +1,7 @@
 TODO
 
 - Convert EKF Localization to EKF SLAM
+- Look into A Matrix for propogation Sigma
 - Change 2D Bearing to a 3D bearing (2 angles?)
 - Add additional sensors (i.e. baro/sonar)
 - Figure out how to do it without true U, V, W
