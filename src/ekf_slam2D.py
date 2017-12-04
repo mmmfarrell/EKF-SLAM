@@ -49,21 +49,21 @@ class ekf_slam:
         self.imu_az = 0.0
 
         #aruco Stuff
-        self.aruco_location = {
-        100:[0.0, 0.0, 0.0],
-        101:[0.0, 14.5, 5.0],
-        102:[5.0, 14.5, 5.0],
-        103:[-5.0, 14.5, 5.0],
-        104:[0.0, -14.5, 5.0],
-        105:[5.0, -14.5, 5.0],
-        106:[-5.0, -14.5, 5.0],
-        107:[7.0, 0.0, 5.0],
-        108:[7.0, 7.5, 5.0],
-        109:[7.0, -7.5, 5.0],
-        110:[-7.0, 0.0, 5.0],
-        111:[-7.0, 7.5, 5.0],
-        112:[-7.0, -7.5, 5.0],
-        }
+        # self.aruco_location = {
+        # 100:[0.0, 0.0, 0.0],
+        # 101:[0.0, 14.5, 5.0],
+        # 102:[5.0, 14.5, 5.0],
+        # 103:[-5.0, 14.5, 5.0],
+        # 104:[0.0, -14.5, 5.0],
+        # 105:[5.0, -14.5, 5.0],
+        # 106:[-5.0, -14.5, 5.0],
+        # 107:[7.0, 0.0, 5.0],
+        # 108:[7.0, 7.5, 5.0],
+        # 109:[7.0, -7.5, 5.0],
+        # 110:[-7.0, 0.0, 5.0],
+        # 111:[-7.0, 7.5, 5.0],
+        # 112:[-7.0, -7.5, 5.0],
+        # }
 
         # Number of propagate steps
         self.N = 5
@@ -171,7 +171,7 @@ class ekf_slam:
 
         # If never seen before
         if self.xhat[9+2*lndmark] == 0.0:
-
+            print "Init Landmark"
             # Init location of Landmark
             self.xhat[9+2*lndmark] = self.xhat[0] + self.range*sin(self.bearing_2d + self.xhat[8]) # pn
             self.xhat[10+2*lndmark] = self.xhat[1] + self.range*cos(self.bearing_2d + self.xhat[8]) # pe
@@ -180,6 +180,7 @@ class ekf_slam:
         delta_n = self.xhat[9+2*lndmark] - self.xhat[0]
         delta_e = self.xhat[10+2*lndmark] - self.xhat[1]
         delta = np.array([delta_e, delta_n])
+        print "delta", delta
 
         q = np.matmul(delta.T, delta)
         # print "q", q
@@ -190,19 +191,28 @@ class ekf_slam:
         # print "zhat", zhat
 
         # Selector Matrix
-        Fxj = np.array([[np.eye(9), np.zeros((9, 2*self.num_landmarks))],
-            [np.zeros((2, 9+(2*(lndmark)))), np.eye(2), np.zeros((2, 2*self.num_landmarks - 2*lndmark))]])
+        # Fxj = np.array([[np.eye(9), np.zeros((9, 2*self.num_landmarks))],
+        #     [np.zeros((2, 9+(2*(lndmark)))), np.eye(2), np.zeros((2, 2*self.num_landmarks - 2*lndmark))]])
 
+        Fxj = np.zeros((11, 9 + 2*self.num_landmarks))
+        Fxj[0:2,0:2] = np.eye(2)
+        Fxj[3,8] = 1.
+        Fxj[9:11, 9+(2*lndmark):11+(2*lndmark)] = np.eye(2)
         print "Fxj", Fxj
 
-        littleC = (1/q)*np.array([[-sqrt(q)*delta_e, -sqrt(q)*delta_n, 0., sqrt(q)*delta_e, sqrt(q)*delta_n],
-                           [delta_n, -delta_e, -q, -delta_n, delta_e]])
+        # print "sqrtq", [-sqrt(q)*delta_e[0], -sqrt(q)*delta_n, 0., sqrt(q)*delta_e, sqrt(q)*delta_n]
+        littleC = (1/q)*np.array([[-sqrt(q)*delta_n[0], -sqrt(q)*delta_e[0], 0., sqrt(q)*delta_n[0], sqrt(q)*delta_e[0]],
+                           [delta_e[0], -delta_n[0], -q, -delta_e[0], delta_n[0]]])
+        BigC = np.zeros((2,11))
+        BigC[0:2,0:5] = littleC
+        # print "BigC", BigC
 
-        C = np.matmul(littleC, Fxj)
+        C = np.matmul(BigC, Fxj)
+        # print "C", C
 
         # print self.aruco_id, self.xhat[0], self.xhat[1], self.range, self.H
         S = np.matmul(C,np.matmul(self.P,C.T))+self.Q
-        self.L =np.matmul(self.P,np.matmul(C.T,np.linalg.inv(S)))
+        self.L = np.matmul(self.P,np.matmul(C.T,np.linalg.inv(S)))
 
         # wrap the residual
         residual = self.z-zhat
@@ -212,12 +222,16 @@ class ekf_slam:
             residual[1] += 2*np.pi
         print "zhat", zhat
         print "Residua", residual
+        print "aruco_id", self.aruco_id
+        print "Location:", self.xhat[9+2*lndmark:11+2*lndmark]
+        # print "xhat", self.xhat
 
         dist = residual.T.dot(np.linalg.inv(S)).dot(residual)[0,0]
         # print "dist", dist
-        if dist < 9:
+        if True: #dist < 9:
             self.xhat = self.xhat + np.matmul(self.L,(residual))
-            self.P = np.matmul((np.identity(9)-np.matmul(self.L,C)),self.P)
+            print "Added", np.matmul(self.L,(residual))[8]
+            self.P = np.matmul((np.identity(9 + 2*self.num_landmarks)-np.matmul(self.L,C)),self.P)
         else:
             print "gated a measurement", np.sqrt(dist)
 
@@ -311,10 +325,11 @@ class ekf_slam:
                 self.z = np.array([[self.range],[self.bearing_2d]])
 
                 # if not (self.aruco_id == 110 or self.aruco_id == 111 or self.aruco_id == 112 or self.aruco_id == 107 or self.aruco_id == 108 or self.aruco_id == 109):
-                print "\nUpdate", self.aruco_id
-                print "range =", self.range
-                print "2D bear =", self.bearing_2d
-                self.update()
+                if True: #self.aruco_id == 107 or self.aruco_id == 108 or self.aruco_id == 109:
+                    print "\nUpdate", self.aruco_id
+                    print "range =", self.range
+                    print "2D bear =", self.bearing_2d
+                    self.update()
                 # if self.aruco_id == 107 or self.aruco_id == 108:
                 #     print "107 Update"
                 #     print "range =", self.range
