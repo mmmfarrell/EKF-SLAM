@@ -4,7 +4,7 @@
   <arg name="color"               default="White"/>
   <arg name="x"                   default="0"/>
   <arg name="y"                   default="0"/>
-  <arg name="z"                   default="0.1"/>
+  <arg name="z"                   default="5.0"/>
   <arg name="yaw"                 default="0"/>
   <arg name="debug"               default="false"/>
   <arg name="boat_name"               default="aruco"/>
@@ -73,7 +73,7 @@
     </node>
 
     <!-- My estimator -->
-    <node pkg="EKF-SLAM" type="ekf_slam2D.py" name="estimator_slam"/>
+    <!-- <node pkg="EKF-SLAM" type="ekf_slam2D.py" name="estimator_slam"/> -->
 
   </group>
 
