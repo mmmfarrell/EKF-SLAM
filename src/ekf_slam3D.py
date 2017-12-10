@@ -20,12 +20,12 @@ class ekf_slam:
 
         # Estimator stuff
         # x = pn, pe, pd, phi, theta, psi
-        self.xhat = np.zeros((9 + 2*self.num_landmarks, 1))
+        self.xhat = np.zeros((9 + 3*self.num_landmarks, 1))
         self.xhat_odom = Odometry()
 
         # Covariance matrix
-        self.P = np.zeros((9 + 2*self.num_landmarks, 9 + 2*self.num_landmarks))
-        self.P[9:,9:] = np.eye(2*self.num_landmarks)*9999999.9 # Inf
+        self.P = np.zeros((9 + 3*self.num_landmarks, 9 + 3*self.num_landmarks))
+        self.P[9:,9:] = np.eye(3*self.num_landmarks)*9999999.9 # Inf
         self.Q = np.diag([100.0, 10.0]) # meas noise
         # self.Q = np.diag([2.0, 1.0]) # meas noise
 
@@ -176,32 +176,40 @@ class ekf_slam:
         lndmark = self.aruco_id - 101
 
         # If never seen before
-        if self.xhat[9+2*lndmark] == 0.0:
+        if self.xhat[9+3*lndmark] == 0.0:
             # Init location of Landmark
-            self.xhat[9+2*lndmark] = self.xhat[0] + self.range*cos(self.bearing_2d + self.xhat[8]) # pn
-            self.xhat[10+2*lndmark] = self.xhat[1] + self.range*sin(self.bearing_2d + self.xhat[8]) # pe
+            self.xhat[9+3*lndmark] = self.xhat[0] + self.range*cos(self.bearing + self.xhat[8])*cos(self.elevation) # pn
+            self.xhat[10+3*lndmark] = self.xhat[1] + self.range*sin(self.bearing + self.xhat[8])*cos(self.elevation) # pe
+            self.xhat[11+3*lndmark] = self.xhat[2] + self.range*sin(self.elevation)
 
         # Compute Delta
-        delta_n = self.xhat[9+2*lndmark] - self.xhat[0]
-        delta_e = self.xhat[10+2*lndmark] - self.xhat[1]
-        delta = np.array([delta_e, delta_n])
+        delta_n = self.xhat[9+3*lndmark] - self.xhat[0]
+        delta_e = self.xhat[10+3*lndmark] - self.xhat[1]
+        delta_d = self.xhat[11+3*lndmark] - self.xhat[2]
+        delta = np.array([delta_e, delta_n, delta_d])
 
         q = np.matmul(delta.T, delta)
 
         # Compute Zhat
         zhat = np.array([[sqrt(q)],
-                        [np.arctan2(delta_e, delta_n)-self.xhat[8]]])
+                        [np.arctan2(delta_e, delta_n)-self.xhat[8]],
+                        [np.arctan2(delta_d, sqrt(delta_e**2 + delta_n**2))]])
+        print "landmark_height", self.xhat[2] + self.range*sin(self.elevation)
+        print "zhat", zhat
+        print "z", self.z
+        print "pitch", self.xhat[7]
 
         # Selector Matrix
-        Fxj = np.zeros((11, 9 + 2*self.num_landmarks))
-        Fxj[0:2,0:2] = np.eye(2)
-        Fxj[2,8] = 1.
-        Fxj[3:5, 9+(2*lndmark):11+(2*lndmark)] = np.eye(2)
+        Fxj = np.zeros((12, 9 + 3*self.num_landmarks))
+        Fxj[0:3,0:3] = np.eye(3)
+        Fxj[3,8] = 1.
+        Fxj[4:6, 9+(3*lndmark):12+(3*lndmark)] = np.eye(3)
 
-        littleC = (1/q)*np.array([[-sqrt(q)*delta_n[0], -sqrt(q)*delta_e[0], 0., sqrt(q)*delta_n[0], sqrt(q)*delta_e[0]],
-                           [delta_e[0], -delta_n[0], -q, -delta_e[0], delta_n[0]]])
-        BigC = np.zeros((2,11))
-        BigC[0:2,0:5] = littleC
+        littleC = (1/q)*np.array([[-sqrt(q)*delta_n[0], -sqrt(q)*delta_e[0], -sqrt(q)*delta_d[0], 0., sqrt(q)*delta_n[0], sqrt(q)*delta_e[0], sqrt(q)*delta_d[0] ],
+                           [delta_e[0], -delta_n[0], 0., -q, -delta_e[0], delta_n[0], 0.],
+                           [-(-delta_d*2*delta_n), 0., 0., 0., 0., 0., 0.]])
+        BigC = np.zeros((2,12))
+        BigC[0:2,0:6] = littleC
 
         C = np.matmul(BigC, Fxj)
 
@@ -215,7 +223,7 @@ class ekf_slam:
         while residual[1] < -np.pi:
             residual[1] += 2*np.pi
 
-        print "Location:", self.xhat[9+2*lndmark:11+2*lndmark]
+        print "Location:", self.xhat[9+3*lndmark:12+3*lndmark]
         print "True Location:", self.aruco_location[self.aruco_id]
 
 
@@ -223,7 +231,7 @@ class ekf_slam:
         if True:
             self.xhat = self.xhat + np.matmul(self.L,(residual))
 
-            self.P = np.matmul((np.identity(9 + 2*self.num_landmarks)-np.matmul(self.L,C)),self.P)
+            self.P = np.matmul((np.identity(9 + 3*self.num_landmarks)-np.matmul(self.L,C)),self.P)
             pass
         else:
             print "gated a measurement", np.sqrt(dist)
