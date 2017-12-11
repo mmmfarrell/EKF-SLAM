@@ -16,18 +16,14 @@ class ekf_slam:
         #init stuff
         #get stuff
 
-        self.num_landmarks = 12
-
         # Estimator stuff
         # x = pn, pe, pd, phi, theta, psi
-        self.xhat = np.zeros((9 + 3*self.num_landmarks, 1))
+        self.xhat = np.zeros((9,1))
         self.xhat_odom = Odometry()
 
         # Covariance matrix
-        self.P = np.zeros((9 + 3*self.num_landmarks, 9 + 3*self.num_landmarks))
-        self.P[9:,9:] = np.eye(3*self.num_landmarks)*9999999.9 # Inf
-        self.Q = np.diag([100.0, 10.0, 10.0]) # meas noise
-        # self.Q = np.diag([2.0, 1.0]) # meas noise
+        self.P = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01])
+        self.Q = np.diag([2.0, 1.0, 1.0]) # meas noise
 
         # Measurements stuff
         # Truth
@@ -48,22 +44,21 @@ class ekf_slam:
         self.truth_w = 0.0
         self.prev_time = 0.0
         self.imu_az = 0.0
-
         #aruco Stuff
         self.aruco_location = {
         100:[0.0, 0.0, 0.0],
-        101:[0.0, -14.5, 5.0],
-        102:[5.0, -14.5, 5.0],
-        103:[-5.0, -14.5, 5.0],
-        104:[0.0, 14.5, 5.0],
-        105:[5.0, 14.5, 5.0],
-        106:[-5.0, 14.5, 5.0],
-        107:[7.0, 0.0, 5.0],
-        108:[7.0, -7.5, 5.0],
-        109:[7.0, 7.5, 5.0],
-        110:[-7.0, 0.0, 5.0],
-        111:[-7.0, -7.5, 5.0],
-        112:[-7.0, 7.5, 5.0],
+        101:[0.0, 14.5, -5.0],
+        102:[5.0, 14.5, -5.0],
+        103:[-5.0, 14.5, -5.0],
+        104:[0.0, -14.5, -5.0],
+        105:[5.0, -14.5, -5.0],
+        106:[-5.0, -14.5, -5.0],
+        107:[7.0, 0.0, -5.0],
+        108:[7.0, 7.5, -5.0],
+        109:[7.0, -7.5, -5.0],
+        110:[-7.0, 0.0, -5.0],
+        111:[-7.0, 7.5, -5.0],
+        112:[-7.0, -7.5, -5.0],
         }
 
         # Number of propagate steps
@@ -148,12 +143,7 @@ class ekf_slam:
             xdot[7] = eul_dot[1]
             xdot[8] = eul_dot[2]
 
-            self.xhat[0:9] += xdot*dt/float(self.N)
-
-            while self.xhat[8] > np.pi:
-                self.xhat[8] -= 2*np.pi
-            while self.xhat[8] < -np.pi:
-                self.xhat[8] += 2*np.pi
+            self.xhat += xdot*dt/float(self.N)
 
             # A = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0],
             # [0, 0, 0, 0, 1, 0, 0, 0, 0],
@@ -166,89 +156,69 @@ class ekf_slam:
             # [0, 0, 0, 0, 0, 0, (self.truth_q*cp-self.truth_r*sp)/ct, -(self.truth_q*sp+self.truth_r*cp)*tt/ct, 0]])
 
             # self.P = self.P + 1/float(self.N)*(np.matmul(A,self.P)+np.matmul(self.P,A.T))#+np.matmul(G,Q,G.T))
-            self.P[0:9,0:9] += np.diag([0.001, 0.001, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.001])
+            self.P = self.P + np.diag([0.001, 0.001, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.001])
 
     def update(self):
-
-        # Remember that X correpsonds to East and Y to north
-
-        # Compute Landmark index (0 indexed)
-        lndmark = self.aruco_id - 101
-
-        # If never seen before
-        if self.xhat[9+3*lndmark] == 0.0:
-            # Init location of Landmark
-            self.xhat[9+3*lndmark] = self.xhat[0] + self.range*cos(self.bearing + self.xhat[8])*cos(self.elevation) # pn
-            self.xhat[10+3*lndmark] = self.xhat[1] + self.range*sin(self.bearing + self.xhat[8])*cos(self.elevation) # pe
-            self.xhat[11+3*lndmark] = self.xhat[2] + self.range*sin(self.elevation)
+        m = self.aruco_location[self.aruco_id]
+        rangehat = np.double(np.sqrt((m[0]-self.xhat[0])**2 + (-m[1]-self.xhat[1])**2 + (m[2]-self.xhat[2])**2))
 
         # Compute Delta
-        delta_n = self.xhat[9+3*lndmark] - self.xhat[0]
-        delta_e = self.xhat[10+3*lndmark] - self.xhat[1]
-        delta_d = self.xhat[11+3*lndmark] - self.xhat[2]
+        delta_n = m[0] - self.xhat[0]
+        delta_e = -m[1] - self.xhat[1]
+        delta_d = (m[2] - self.xhat[2])
         delta = np.array([delta_e, delta_n, delta_d])
 
         q = np.matmul(delta.T, delta)
 
-        # Compute Zhat
         zhat = np.array([[sqrt(q)],
                         [np.arctan2(delta_e, delta_n)-self.xhat[8]],
-                        [np.arctan2(delta_d, sqrt(delta_e**2 + delta_n**2))]])
-        # print "landmark_height", self.xhat[2] + self.range*sin(self.elevation)
-        # print "zhat", zhat
-        # print "z", self.z
-        # print "pitch", self.xhat[7]
+                        [-np.arctan2(delta_d, sqrt(delta_e**2 + delta_n**2))]])
+        print "elevation", self.elevation
+        print "ele hat", -np.arctan2(delta_d, sqrt(delta_e**2 + delta_n**2))
+        print "ele hat true", -np.arctan2((m[2]-self.truth_pd), sqrt((m[1]-self.truth_pe)**2 + (m[0]-self.truth_pn)**2))
+        print "zhat", zhat
+        print "z", self.z
+        # C = np.array([[np.double(-(m[0]-self.xhat[0])/rangehat) , -((-m[1])-self.xhat[1])/rangehat,0,0,0,0,0,0,0 ],
+        #                    [((-m[1])-self.xhat[1])/rangehat**2  , -(m[0]-self.xhat[0])/rangehat**2,0,0,0,0,0,0,-1]])
 
-        # Selector Matrix
-        Fxj = np.zeros((12, 9 + 3*self.num_landmarks))
-        Fxj[0:3,0:3] = np.eye(3)
-        Fxj[3,8] = 1.
-        Fxj[4:7, 9+(3*lndmark):12+(3*lndmark)] = np.eye(3)
+        # print np.array([[-sqrt(q)*delta_n[0], -sqrt(q)*delta_e[0], -sqrt(q)*delta_d[0], 0., 0., 0., 0., 0., 0. ],
+        #                    [delta_e[0], -delta_n[0], 0., 0., 0., 0., 0., 0., -q[0,0]],
+        #                    [(delta_d[0]*2*delta_n[0])/(2*sqrt(delta_e[0]**2 + delta_n[0]**2)), (delta_d[0]*2*delta_e[0])/(2*sqrt(delta_e[0]**2 + delta_n[0]**2)),
+        #                    (-sqrt(delta_e[0]**2 + delta_n[0]**2)), 0., 0., 0., 0., 0., 0.]])
 
-        littleC = (1/q)*np.array([[-sqrt(q)*delta_n[0], -sqrt(q)*delta_e[0], -sqrt(q)*delta_d[0], 0., sqrt(q)*delta_n[0], sqrt(q)*delta_e[0], sqrt(q)*delta_d[0] ],
-                           [delta_e[0], -delta_n[0], 0., -q, -delta_e[0], delta_n[0], 0.],
-                           [(delta_d[0]*2*delta_n[0])/(2*sqrt(delta_e[0]**2 + delta_n[0]**2)), (delta_d[0]*2*delta_e[0])/(2*sqrt(delta_e[0]**2 + delta_n[0]**2)),
-                           (-sqrt(delta_e[0]**2 + delta_n[0]**2)), 0., (-delta_d[0]*2*delta_n[0])/(2*sqrt(delta_e[0]**2 + delta_n[0]**2)),
-                           -(delta_d[0]*2*delta_e[0])/(2*sqrt(delta_e[0]**2 + delta_n[0]**2)), (sqrt(delta_e[0]**2 + delta_n[0]**2))]])
+        C = (1/(q[0,0]))*np.array([[-delta_n[0]*sqrt(q[0,0]), -delta_e[0]*sqrt(q[0,0]), -delta_d[0]*sqrt(q[0,0]), 0., 0., 0., 0., 0., 0. ],
+                           [(delta_e[0]*(q[0,0]))/((delta_e[0]**2 + delta_n[0]**2)), (-delta_n[0]*(q[0,0]))/((delta_e[0]**2 + delta_n[0]**2)), 0., 0., 0., 0., 0., 0., -q[0,0]],
+                           [(-delta_d[0]*2*delta_n[0])/(2*sqrt(delta_e[0]**2 + delta_n[0]**2)), (-delta_d[0]*2*delta_e[0])/(2*sqrt(delta_e[0]**2 + delta_n[0]**2)),
+                           (sqrt(delta_e[0]**2 + delta_n[0]**2)), 0., 0., 0., 0., 0., 0.]])
 
-        BigC = np.zeros((3,12))
-        BigC[0:3,0:7] = littleC
 
-        C = np.matmul(BigC, Fxj)
-
+        # print self.aruco_id, self.xhat[0], self.xhat[1], self.range, self.H
         S = np.matmul(C,np.matmul(self.P,C.T))+self.Q
-        self.L = np.matmul(self.P,np.matmul(C.T,np.linalg.inv(S)))
+        self.L =np.matmul(self.P,np.matmul(C.T,np.linalg.inv(S)))
 
         # wrap the residual
         residual = self.z-zhat
-        while residual[1] > np.pi:
+        if residual[1] > np.pi:
             residual[1] -= 2*np.pi
-        while residual[1] < -np.pi:
+        if residual[1] < -np.pi:
             residual[1] += 2*np.pi
-
-        print "Location:", self.xhat[9+3*lndmark:12+3*lndmark]
-        print "True Location:", self.aruco_location[self.aruco_id]
-
+        # print "zhat", zhat
+        # print "Residua", residual
 
         dist = residual.T.dot(np.linalg.inv(S)).dot(residual)[0,0]
-        if True:
+        # print "dist", dist
+        if dist < 9:
             self.xhat = self.xhat + np.matmul(self.L,(residual))
-
-            self.P = np.matmul((np.identity(9 + 3*self.num_landmarks)-np.matmul(self.L,C)),self.P)
-            pass
+            self.P = np.matmul((np.identity(9)-np.matmul(self.L,C)),self.P)
         else:
             print "gated a measurement", np.sqrt(dist)
-
-        while self.xhat[8] > np.pi:
-            self.xhat[8] -= 2*np.pi
-        while self.xhat[8] < -np.pi:
-            self.xhat[8] += 2*np.pi
-
-        # print "True measred position N", self.truth_pn + self.range*cos(self.bearing_2d + self.truth_psi) # pn
-        # print "True measred position E", self.truth_pe + self.range*sin(self.bearing_2d + self.truth_psi) # pe
-        print "measred position N", self.xhat[0] + self.range*cos(self.bearing + self.xhat[8])*cos(self.elevation) # pn
-        print "True measred position E", self.xhat[1] + self.range*sin(self.bearing + self.xhat[8])*cos(self.elevation) # pe
-        print "True measred position D", self.xhat[2] + self.range*sin(self.elevation)
+        print "True N", m[0]
+        print "True E", m[1]
+        print "True D", m[2]
+        print "measred position N", self.truth_pn + self.range*cos(self.bearing + self.truth_psi)*cos(self.elevation) # pn
+        print "measred position E", self.truth_pe + self.range*sin(self.bearing + self.truth_psi)*cos(self.elevation) # pe
+        print "measred position D", self.truth_pd - self.range*sin(self.elevation)
+        print "elevation", self.elevation
 
     def pub_est(self, event):
 
@@ -340,11 +310,17 @@ class ekf_slam:
                 self.elevation = np.arctan2(-self.aruco_y,sqrt(self.aruco_z**2 + self.aruco_x**2))#-self.truth_psi
                 self.z = np.array([[self.range],[self.bearing],[self.elevation]])
 
+                # if not (self.aruco_id == 110 or self.aruco_id == 111 or self.aruco_id == 112 or self.aruco_id == 107 or self.aruco_id == 108 or self.aruco_id == 109):
                 if True:
                     print "\nUpdate", self.aruco_id
-
+                    # print "range =", self.range
+                    # print "2D bear =", self.bearing_2d
                     self.update()
-
+                # if self.aruco_id == 107 or self.aruco_id == 108:
+                #     print "107 Update"
+                #     print "range =", self.range
+                #     print "2D bear =", self.bearing_2d
+                #     self.update()
 
 ##############################
 #### Main Function to Run ####
