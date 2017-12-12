@@ -158,6 +158,56 @@ class ekf_slam:
             # self.P = self.P + 1/float(self.N)*(np.matmul(A,self.P)+np.matmul(self.P,A.T))#+np.matmul(G,Q,G.T))
             self.P = self.P + np.diag([0.001, 0.001, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.001])
 
+            # p_dot = np.array([[cp*st*self.imu_az],[-sp*self.imu_az],[self.g+cp*ct*self.imu_az]])
+            # R_p_u = np.array([[ct*cpsi, sp*st*cpsi-cp*spsi,cp*st*cpsi+sp*spsi],
+            #                   [ct*spsi, sp*st*spsi+cp*cpsi,cp*st*spsi-sp*cpsi],
+            #                   [-st, sp*ct, cp*ct]])
+            #
+            # uvw_dot = np.matmul(R_p_u.T,p_dot)
+            #
+            # # J_uvw = np.array([[self.imu_az*ct*sp*st - self.imu_az*cp*ct*spsi - self.imu_az*cpsi*ct*sp*st, self.imu_az*cp*st**2 - ct*(self.g + self.imu_az*cp*ct) + self.imu_az*sp*spsi*st + self.imu_az*cp*cpsi*ct**2 - self.imu_az*cp*cpsi*st**2, - self.imu_az*cpsi*ct*sp - self.imu_az*cp*ct*spsi*st],
+            # # [self.imu_az*sp*(cpsi*sp - cp*spsi*st) - self.imu_az*cp*(cp*cpsi + sp*spsi*st) - self.imu_az*ct**2*sp**2 + cp*ct*(self.g + self.imu_az*cp*ct) + self.imu_az*sp*st*(cp*spsi - cpsi*sp*st) + self.imu_az*cp*st*(sp*spsi + cp*cpsi*st), self.imu_az*cp*cpsi*ct*sp*st - self.imu_az*ct*sp**2*spsi - self.imu_az*cp*ct*(cp*spsi - cpsi*sp*st) - self.imu_az*cp*ct*sp*st - sp*st*(self.g + self.imu_az*cp*ct), self.imu_az*sp*(cp*spsi - cpsi*sp*st) - self.imu_az*cp*st*(cp*cpsi + sp*spsi*st)],
+            # # [ self.imu_az*cp*(cpsi*sp - cp*spsi*st) + self.imu_az*sp*(cp*cpsi + sp*spsi*st) - ct*sp*(self.g + self.imu_az*cp*ct) - self.imu_az*sp*st*(sp*spsi + cp*cpsi*st) - self.imu_az*cp*ct**2*sp + self.imu_az*cp*st*(cp*spsi - cpsi*sp*st),      self.imu_az*cp*ct*(sp*spsi + cp*cpsi*st) - self.imu_az*cp**2*ct*st - cp*st*(self.g + self.imu_az*cp*ct) - self.imu_az*cp*ct*sp*spsi + self.imu_az*cp**2*cpsi*ct*st, self.imu_az*cp*st*(cpsi*sp - cp*spsi*st) - self.imu_az*sp*(sp*spsi + cp*cpsi*st)]])
+            # J_uvw = np.array([[-self.imu_az*ct*(cp*spsi - sp*st + cpsi*sp*st), self.imu_az*cp - self.g*ct - self.imu_az*cp*cpsi - 2*self.imu_az*cp*ct**2 + self.imu_az*sp*spsi*st + 2*self.imu_az*cp*cpsi*ct**2,-self.imu_az*ct*(cpsi*sp + cp*spsi*st)],
+            # [ 2*self.imu_az*cp**2*ct**2 - self.imu_az*ct**2 + self.g*cp*ct + self.imu_az*cpsi*ct**2 - 2*self.imu_az*cp**2*cpsi*ct**2,2*self.imu_az*cp*cpsi*ct*sp*st - self.g*sp*st - 2*self.imu_az*cp*ct*sp*st - self.imu_az*ct*spsi, self.imu_az*sp*(cp*spsi - cpsi*sp*st) - self.imu_az*cp*st*(cp*cpsi + sp*spsi*st)],
+            # [-ct*sp*(self.g + 2*self.imu_az*cp*ct - 2*self.imu_az*cp*cpsi*ct),-cp*st*(self.g + 2*self.imu_az*cp*ct - 2*self.imu_az*cp*cpsi*ct),-self.imu_az*spsi*(cp**2*st**2 + sp**2)]])
+            # # print J_uvw
+            # # Calc xdot
+            # #TODO add other states, or remove states from Jacobian
+            # xdot = np.zeros((9,1))
+            # xdot[0] = pos_dot[0]
+            # xdot[1] = pos_dot[1]
+            # xdot[2] = pos_dot[2]
+            # xdot[3] = uvw_dot[0]                    # udot
+            # xdot[4] = uvw_dot[1]                     # vdot
+            # xdot[5] = uvw_dot[2]              # wdot
+            # xdot[6] = eul_dot[0]
+            # xdot[7] = eul_dot[1]
+            # xdot[8] = eul_dot[2]
+            #
+            # self.xhat[0:9] += xdot*dt/float(self.N)
+            #
+            # while self.xhat[8] > np.pi:
+            #     self.xhat[8] -= 2*np.pi
+            # while self.xhat[8] < -np.pi:
+            #     self.xhat[8] += 2*np.pi
+            #
+            # A = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0],
+            # [0, 0, 0, 0, 1, 0, 0, 0, 0],
+            # [0, 0, 0, 0, 0, 1, 0, 0, 0],
+            # [0, 0, 0, 0, 0, 0, J_uvw[0,0], J_uvw[0,1], J_uvw[0,2]],
+            # [0, 0, 0, 0, 0, 0, J_uvw[1,0], J_uvw[1,1], J_uvw[1,2]],
+            # [0, 0, 0, 0, 0, 0, J_uvw[2,0], J_uvw[2,1], J_uvw[2,2]],
+            # # [0, 0, 0, 0, 0, 0, -sp*st*self.imu_az, cp*ct*self.imu_az, 0],
+            # # [0, 0, 0, 0, 0, 0, -cp*self.imu_az, 0, 0],
+            # # [0, 0, 0, 0, 0, 0, -sp*ct*self.imu_az, -cp*st*self.imu_az, 0],
+            # [0, 0, 0, 0, 0, 0, self.truth_q*cp*tt-self.truth_r*sp*tt, (self.truth_q*sp+self.truth_r*cp)/(ct)**2, 0],
+            # [0, 0, 0, 0, 0, 0, -self.truth_q*sp-self.truth_r*cp, 0, 0],
+            # [0, 0, 0, 0, 0, 0, (self.truth_q*cp-self.truth_r*sp)/ct, -(self.truth_q*sp+self.truth_r*cp)*tt/ct, 0]])
+            #
+            # # print A
+            # self.P[0:9,0:9] = self.P[0:9,0:9] + 1/float(self.N)*(np.matmul(A,self.P[0:9,0:9])+np.matmul(self.P[0:9,0:9],A.T))#+np.matmul(G,Q,G.T))
+
     def update(self):
         m = self.aruco_location[self.aruco_id]
         rangehat = np.double(np.sqrt((m[0]-self.xhat[0])**2 + (-m[1]-self.xhat[1])**2))

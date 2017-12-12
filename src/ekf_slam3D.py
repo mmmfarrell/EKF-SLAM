@@ -232,7 +232,6 @@ class ekf_slam:
         print "Location:", self.xhat[9+3*lndmark:12+3*lndmark]
         print "True Location:", self.aruco_location[self.aruco_id]
 
-
         dist = residual.T.dot(np.linalg.inv(S)).dot(residual)[0,0]
         if True:
             self.xhat = self.xhat + np.matmul(self.L,(residual))
