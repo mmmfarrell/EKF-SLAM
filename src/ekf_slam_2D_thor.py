@@ -5,6 +5,7 @@ import rospy
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Float32
+from geometry_msgs.msg import PoseStamped, Vector3Stamped
 from aruco_localization.msg import MarkerMeasurementArray
 from math import *
 import numpy as np
@@ -79,15 +80,15 @@ class ekf_slam:
         }
 
         self.landmark_number = {
-        1:[76],
-        2:[245],
-        3:[55],
-        4:[110],
-        5:[248],
-        6:[64],
-        7:[25],
-        8:[121],
-        9:[5],
+        76:[1],
+        245:[2],
+        55:[3],
+        110:[4],
+        248:[5],
+        64:[6],
+        25:[7],
+        121:[8],
+        5:[9],
         }
 
         # Number of propagate steps
@@ -98,8 +99,9 @@ class ekf_slam:
 
         # ROS Stuff
         # Init subscribers
-        self.truth_sub_ = rospy.Subscriber('/slammer/ground_truth/odometry/NED', Odometry, self.truth_callback)
-        self.imu_sub_ = rospy.Subscriber('/slammer/imu/data', Imu, self.imu_callback)
+        self.truth_sub_ = rospy.Subscriber('/mocap/thor/pose', PoseStamped, self.truth_callback)
+        self.imu_sub_ = rospy.Subscriber('/imu/data', Imu, self.imu_callback)
+        self.velocity_sub_ = rospy.Subscriber('/velocities', Vector3Stamped, self.velocity_callback)
         self.aruco_sub = rospy.Subscriber('/aruco/measurements', MarkerMeasurementArray, self.aruco_meas_callback )
 
         # Init publishers
@@ -137,6 +139,18 @@ class ekf_slam:
             # cpsi = cos(self.truth_psi)
 
             # Calc pos_dot
+            R_p_u = np.array([[ct*cpsi, sp*st*cpsi-cp*spsi,cp*st*cpsi+sp*spsi],
+                              [ct*spsi, sp*st*spsi+cp*cpsi,cp*st*spsi-sp*cpsi],
+                              [-st, sp*ct, cp*ct]])
+
+
+            p_dot = np.array([[self.pndot],[self.pedot],[self.pddot]])
+            uvw = np.matmul(R_p_u.T,p_dot)
+            self.truth_u = uvw[0]
+            self.truth_v = uvw[1]
+            self.truth_w = uvw[2]
+
+
             lin_vel = np.zeros((3,1))
             lin_vel[0] = self.truth_u
             lin_vel[1] = self.truth_v
@@ -159,12 +173,11 @@ class ekf_slam:
 
             eul_dot = np.matmul(rot_matrix, ang_rates)
 
-            p_dot = np.array([[cp*st*self.imu_az],[-sp*self.imu_az],[self.g+cp*ct*self.imu_az]])
-            R_p_u = np.array([[ct*cpsi, sp*st*cpsi-cp*spsi,cp*st*cpsi+sp*spsi],
-                              [ct*spsi, sp*st*spsi+cp*cpsi,cp*st*spsi-sp*cpsi],
-                              [-st, sp*ct, cp*ct]])
+            # p_dot = np.array([[cp*st*self.imu_az],[-sp*self.imu_az],[self.g+cp*ct*self.imu_az]])
+            p_dot = np.array([[self.pndot],[self.pedot],[self.pddot]])
 
-            uvw_dot = np.matmul(R_p_u.T,p_dot)
+            p_ddot = np.array([[cp*st*self.imu_az],[-sp*self.imu_az],[self.g+cp*ct*self.imu_az]])
+            uvw_dot = np.matmul(R_p_u.T,p_ddot)
 
             # J_uvw = np.array([[self.imu_az*ct*sp*st - self.imu_az*cp*ct*spsi - self.imu_az*cpsi*ct*sp*st, self.imu_az*cp*st**2 - ct*(self.g + self.imu_az*cp*ct) + self.imu_az*sp*spsi*st + self.imu_az*cp*cpsi*ct**2 - self.imu_az*cp*cpsi*st**2, - self.imu_az*cpsi*ct*sp - self.imu_az*cp*ct*spsi*st],
             # [self.imu_az*sp*(cpsi*sp - cp*spsi*st) - self.imu_az*cp*(cp*cpsi + sp*spsi*st) - self.imu_az*ct**2*sp**2 + cp*ct*(self.g + self.imu_az*cp*ct) + self.imu_az*sp*st*(cp*spsi - cpsi*sp*st) + self.imu_az*cp*st*(sp*spsi + cp*cpsi*st), self.imu_az*cp*cpsi*ct*sp*st - self.imu_az*ct*sp**2*spsi - self.imu_az*cp*ct*(cp*spsi - cpsi*sp*st) - self.imu_az*cp*ct*sp*st - sp*st*(self.g + self.imu_az*cp*ct), self.imu_az*sp*(cp*spsi - cpsi*sp*st) - self.imu_az*cp*st*(cp*cpsi + sp*spsi*st)],
@@ -173,8 +186,9 @@ class ekf_slam:
             [ 2*self.imu_az*cp**2*ct**2 - self.imu_az*ct**2 + self.g*cp*ct + self.imu_az*cpsi*ct**2 - 2*self.imu_az*cp**2*cpsi*ct**2,2*self.imu_az*cp*cpsi*ct*sp*st - self.g*sp*st - 2*self.imu_az*cp*ct*sp*st - self.imu_az*ct*spsi, self.imu_az*sp*(cp*spsi - cpsi*sp*st) - self.imu_az*cp*st*(cp*cpsi + sp*spsi*st)],
             [-ct*sp*(self.g + 2*self.imu_az*cp*ct - 2*self.imu_az*cp*cpsi*ct),-cp*st*(self.g + 2*self.imu_az*cp*ct - 2*self.imu_az*cp*cpsi*ct),-self.imu_az*spsi*(cp**2*st**2 + sp**2)]])
             # print J_uvw
+
             # Calc xdot
-            #TODO add other states, or remove states from Jacobian
+
             xdot = np.zeros((9,1))
             xdot[0] = pos_dot[0]
             xdot[1] = pos_dot[1]
@@ -215,7 +229,9 @@ class ekf_slam:
         # Remember that X correpsonds to East and Y to north
 
         # Compute Landmark index (0 indexed)
-        lndmark = self.aruco_id - 101
+        lndmark = self.landmark_number[self.aruco_id]
+        print lndmark
+        lndmark = lndmark[0]
         # print "Landmark #", lndmark
 
         # If never seen before
@@ -323,28 +339,28 @@ class ekf_slam:
         time = msg.header.stamp.secs + msg.header.stamp.nsecs*1e-9
 
         # Map msg to class variables
-        self.truth_pn = msg.pose.pose.position.x
-        self.truth_pe = msg.pose.pose.position.y
-        self.truth_pd = msg.pose.pose.position.z
+        self.truth_pn = msg.pose.position.z
+        self.truth_pe = -msg.pose.position.x
+        self.truth_pd = -msg.pose.position.y
 
         quat = (
-        msg.pose.pose.orientation.x,
-        msg.pose.pose.orientation.y,
-        msg.pose.pose.orientation.z,
-        msg.pose.pose.orientation.w)
+        msg.pose.orientation.z,
+        -msg.pose.orientation.x,
+        -msg.pose.orientation.y,
+        msg.pose.orientation.w)
         euler = tf.transformations.euler_from_quaternion(quat)
 
         self.truth_phi = euler[0]
         self.truth_theta = euler[1]
         self.truth_psi = euler[2]
 
-        self.truth_p = msg.twist.twist.angular.x
-        self.truth_q = msg.twist.twist.angular.y
-        self.truth_r = msg.twist.twist.angular.z
-
-        self.truth_u = msg.twist.twist.linear.x
-        self.truth_v = msg.twist.twist.linear.y
-        self.truth_w = msg.twist.twist.linear.z
+        # self.truth_p = msg.twist.twist.angular.x
+        # self.truth_q = msg.twist.twist.angular.y
+        # self.truth_r = msg.twist.twist.angular.z
+        #
+        # self.truth_u = msg.twist.twist.linear.x
+        # self.truth_v = msg.twist.twist.linear.y
+        # self.truth_w = msg.twist.twist.linear.z
 
         if (self.prev_time != 0.0):
             dt = time - self.prev_time
@@ -368,6 +384,11 @@ class ekf_slam:
         self.imu_ax = msg.linear_acceleration.x
         self.imu_ay = msg.linear_acceleration.y
         self.imu_az = msg.linear_acceleration.z
+
+    def velocity_callback(self, msg):
+        self.pndot = msg.vector.x
+        self.pedot = msg.vector.y
+        self.pddot = msg.vector.z
 
     def aruco_meas_callback(self, msg):
         if len(msg.poses)>0:
