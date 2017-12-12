@@ -26,8 +26,7 @@ class ekf_slam:
         # Covariance matrix
         self.P = np.zeros((9 + 3*self.num_landmarks, 9 + 3*self.num_landmarks))
         self.P[9:,9:] = np.eye(3*self.num_landmarks)*9999999.9 # Inf
-        self.Q = np.diag([100.0, 10.0, 10.0]) # meas noise
-        # self.Q = np.diag([2.0, 1.0]) # meas noise
+        self.Q = np.diag([10.0, 5.0, 5.0]) # meas noise
 
         # Measurements stuff
         # Truth
@@ -149,11 +148,11 @@ class ekf_slam:
             xdot[8] = eul_dot[2]
 
             self.xhat[0:9] += xdot*dt/float(self.N)
-
-            while self.xhat[8] > np.pi:
-                self.xhat[8] -= 2*np.pi
-            while self.xhat[8] < -np.pi:
-                self.xhat[8] += 2*np.pi
+            #
+            # while self.xhat[8] > np.pi:
+            #     self.xhat[8] -= 2*np.pi
+            # while self.xhat[8] < -np.pi:
+            #     self.xhat[8] += 2*np.pi
 
             # A = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0],
             # [0, 0, 0, 0, 1, 0, 0, 0, 0],
@@ -193,7 +192,7 @@ class ekf_slam:
         # Compute Zhat
         zhat = np.array([[sqrt(q)],
                         [np.arctan2(delta_e, delta_n)-self.xhat[8]],
-                        [np.arctan2(delta_d, sqrt(delta_e**2 + delta_n**2))]])
+                        [-np.arctan2(delta_d, sqrt(delta_e**2 + delta_n**2))]])
         # print "landmark_height", self.xhat[2] + self.range*sin(self.elevation)
         # print "zhat", zhat
         # print "z", self.z
@@ -201,18 +200,22 @@ class ekf_slam:
 
         # Selector Matrix
         Fxj = np.zeros((12, 9 + 3*self.num_landmarks))
-        Fxj[0:3,0:3] = np.eye(3)
-        Fxj[3,8] = 1.
-        Fxj[4:7, 9+(3*lndmark):12+(3*lndmark)] = np.eye(3)
+        Fxj[0:9,0:9] = np.eye(9)
+        # Fxj[3,8] = 1.
+        Fxj[9:12, 9+(3*lndmark):12+(3*lndmark)] = np.eye(3)
 
-        littleC = (1/q)*np.array([[-sqrt(q)*delta_n[0], -sqrt(q)*delta_e[0], -sqrt(q)*delta_d[0], 0., sqrt(q)*delta_n[0], sqrt(q)*delta_e[0], sqrt(q)*delta_d[0] ],
-                           [delta_e[0], -delta_n[0], 0., -q, -delta_e[0], delta_n[0], 0.],
-                           [(delta_d[0]*2*delta_n[0])/(2*sqrt(delta_e[0]**2 + delta_n[0]**2)), (delta_d[0]*2*delta_e[0])/(2*sqrt(delta_e[0]**2 + delta_n[0]**2)),
-                           (-sqrt(delta_e[0]**2 + delta_n[0]**2)), 0., (-delta_d[0]*2*delta_n[0])/(2*sqrt(delta_e[0]**2 + delta_n[0]**2)),
-                           -(delta_d[0]*2*delta_e[0])/(2*sqrt(delta_e[0]**2 + delta_n[0]**2)), (sqrt(delta_e[0]**2 + delta_n[0]**2))]])
+        C1 = (1/(q[0,0]))*np.array([[-delta_n[0]*sqrt(q[0,0]), -delta_e[0]*sqrt(q[0,0]), -delta_d[0]*sqrt(q[0,0]), 0., 0., 0., 0., 0., 0. ],
+                           [(delta_e[0]*(q[0,0]))/((delta_e[0]**2 + delta_n[0]**2)), (-delta_n[0]*(q[0,0]))/((delta_e[0]**2 + delta_n[0]**2)), 0., 0., 0., 0., 0., 0., -q[0,0]],
+                           [(-delta_d[0]*2*delta_n[0])/(2*sqrt(delta_e[0]**2 + delta_n[0]**2)), (-delta_d[0]*2*delta_e[0])/(2*sqrt(delta_e[0]**2 + delta_n[0]**2)),
+                           (sqrt(delta_e[0]**2 + delta_n[0]**2)), 0., 0., 0., 0., 0., 0.]])
+
+        C2 = (1/(q[0,0]))*np.array([[delta_n[0]*sqrt(q[0,0]), delta_e[0]*sqrt(q[0,0]), delta_d[0]*sqrt(q[0,0])],
+                          [(-delta_e[0]*q[0,0])/((delta_e[0]**2 + delta_n[0]**2)), (delta_n[0]*q[0,0])/((delta_e[0]**2 + delta_n[0]**2)), 0.],
+                          [(delta_d[0]*2*delta_n[0])/(2*sqrt(delta_e[0]**2 + delta_n[0]**2)), (delta_d[0]*2*delta_e[0])/(2*sqrt(delta_e[0]**2 + delta_n[0]**2)), -(sqrt(delta_e[0]**2 + delta_n[0]**2))]])
 
         BigC = np.zeros((3,12))
-        BigC[0:3,0:7] = littleC
+        BigC[0:3,0:9] = C1
+        BigC[0:3,9:12] = C2
 
         C = np.matmul(BigC, Fxj)
 
