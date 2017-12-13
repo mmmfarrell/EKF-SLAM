@@ -348,6 +348,7 @@ class ekf_slam:
 
         if (self.prev_time != 0.0):
             dt = time - self.prev_time
+            print "propagate!!!"
             self.propagate(dt)
 
         self.prev_time = time
@@ -386,17 +387,11 @@ class ekf_slam:
                 self.bearing_2d = np.arctan2(self.aruco_x,self.aruco_z)#-self.truth_psi
                 self.z = np.array([[self.range],[self.bearing_2d]])
 
-                # if not (self.aruco_id == 110 or self.aruco_id == 111 or self.aruco_id == 112 or self.aruco_id == 107 or self.aruco_id == 108 or self.aruco_id == 109):
-                # if self.aruco_id == 107 or self.aruco_id == 108 or self.aruco_id == 109:
+
                 print "\nUpdate", self.aruco_id
-                # print "range =", self.range
-                # print "2D bear =", self.bearing_2d
-                self.update()
-                # if self.aruco_id == 107 or self.aruco_id == 108:
-                #     print "107 Update"
-                #     print "range =", self.range
-                #     print "2D bear =", self.bearing_2d
-                #     self.update()
+
+                # self.update()
+
 
 ##############################
 #### Main Function to Run ####

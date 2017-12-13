@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<launch>
+
+
+  <!-- plot states -->
+  <node pkg="EKF-SLAM" type="states_bag_plotter.py" name="states_bag_plotter" output="screen">
+    <param name="time_window" value="10.0"/>
+  </node>
+
+  <!-- My estimator -->
+  <node pkg="EKF-SLAM" type="ekf_slam_3D_thor.py" name="estimator_slam" output="screen"/>
+
+  <!-- Run Rosbag -->
+  <node pkg="rosbag" type="play" name="rosbag" args="$(find EKF-SLAM)/bag/thor_mocap_new.bag" />
+
+
+
+</launch>

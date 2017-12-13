@@ -23,6 +23,10 @@ class Plotter:
         self.init_time = True
 
 
+        # setup subsribers
+        rospy.Subscriber('/ekf_estimate', Odometry, self.estimateCallback)
+        # rospy.Subscriber('/slammer/ground_truth/odometry/NED', Odometry, self.truthCallback)
+        rospy.Subscriber('/mocap/thor/pose', PoseStamped, self.truthCallback)
 
 
 
@@ -130,10 +134,6 @@ class Plotter:
         self.q_e = 0
         self.r_e = 0
 
-        # setup subsribers
-        rospy.Subscriber('/ekf_estimate', Odometry, self.estimateCallback)
-        # rospy.Subscriber('/slammer/ground_truth/odometry/NED', Odometry, self.truthCallback)
-        rospy.Subscriber('/mocap/thor/pose', PoseStamped, self.truthCallback)
         rospy.Subscriber('/velocities', Vector3Stamped, self.velCallback)
 
         # truth/estimate storage lists
@@ -280,7 +280,7 @@ class Plotter:
         if self.init_time == True:
             self.time0 = msg.header.stamp.to_sec()
             self.init_time = False
-        self.time_t = msg.header.stamp.to_sec() - self.time0
+        # self.time_t = msg.header.stamp.to_sec() - self.time0
 
 ################################################################################
 ################################################################################
